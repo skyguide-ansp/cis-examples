@@ -13,17 +13,13 @@ import (
 	surveillance_dss_v0 "github.com/skyguide-ansp/cis-examples/api/surveillance/v0/dss"
 	surveillance_uss_v0 "github.com/skyguide-ansp/cis-examples/api/surveillance/v0/uss"
 	httpUtil "github.com/skyguide-ansp/cis-examples/http"
+	"github.com/skyguide-ansp/cis-examples/util"
 )
 
 type SurveillanceClientV0 struct {
 	DssAuthorizer *httpUtil.Authorizer
 	UssConfig     *httpUtil.Credential
 	dss           surveillance_dss_v0.ClientInterface
-}
-
-type Provider struct {
-	name string
-	url  string
 }
 
 type TrafficDataAndProvider struct {
@@ -33,7 +29,7 @@ type TrafficDataAndProvider struct {
 
 // pass configuration to create a new client for display provider
 // as for uss and dss there might be the same server url, but the scopes and audiences may changes
-func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credential, dssBaseUrl, dssBasePath string) (*SurveillanceClientV0, error) {
+func NewConsumer(dssCredential httpUtil.Credential, ussCredential httpUtil.Credential, dssBaseUrl, dssBasePath string) (*SurveillanceClientV0, error) {
 	dssAuthorizer := &httpUtil.Authorizer{
 		Credential: dssCredential,
 		Token:      nil,
@@ -68,7 +64,7 @@ func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Contex
 	surveilledAreas, err := client.listTrafficSurveilledArea(ctx, &surveillance_dss_v0.SearchTrafficSurveilledAreasParams{
 		Area:         view,
 		LatestTime:   time.Now().Add(time.Hour),
-		EarliestTime: time.Now().Add(time.Duration(-1) * time.Hour),
+		EarliestTime: time.Now().Add(-1 * time.Hour),
 	})
 	if err != nil {
 		return nil, err
@@ -76,7 +72,7 @@ func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Contex
 	if surveilledAreas == nil {
 		return nil, errors.New("response is empty")
 	}
-	if surveilledAreas.ServiceAreas == nil {
+	if surveilledAreas.ServiceAreas == nil || len(*surveilledAreas.ServiceAreas) == 0 {
 		return nil, errors.New("no provider found")
 	}
 
@@ -85,19 +81,25 @@ func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Contex
 
 func (client *SurveillanceClientV0) StreamFlightInAreas(ctx context.Context, surveilledAreas *surveillance_dss_v0.SearchTrafficSurveilledAreasResponse, view string) (chan *TrafficDataAndProvider, error) {
 	// prepare a chanel for the stream of flights
-	flightEventStream := make(chan *TrafficDataAndProvider, 100)
+
+	streamCollector := util.ConcurrentCollector[TrafficDataAndProvider]{}
 
 	// start streaming to the channel
 	for _, area := range *surveilledAreas.ServiceAreas {
-		go func() {
-			listenErr := client.listenTrafficFromSource(ctx, &area, flightEventStream, view)
+
+		err := streamCollector.RegisterStreamer(func(ctx context.Context, channel chan *TrafficDataAndProvider) {
+			listenErr := client.listenTrafficFromSource(ctx, &area, channel, view)
 			if listenErr != nil {
 				fmt.Printf("closing stream to %s, because of error: %v", area.Owner, listenErr)
 			}
-		}()
+		})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return flightEventStream, nil
+	return streamCollector.Run(ctx)
 }
 
 // Call DSS to get all the Providers Area concerned by the view

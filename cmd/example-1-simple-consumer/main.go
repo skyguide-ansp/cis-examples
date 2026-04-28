@@ -50,7 +50,7 @@ func main() {
 	}
 
 	// create client
-	displayProvider, err := provider.NewClient(
+	displayProvider, err := provider.NewConsumer(
 		DssCredentials,
 		UssCredentials,
 		*dssUrl,
@@ -77,7 +77,11 @@ func main() {
 		select {
 		case <-ctx.Done():
 			return
-		case data := <-stream:
+		case data, ok := <-stream:
+			if !ok {
+				return
+			}
+
 			jsonFlightInfo, convertErr := json.Marshal(data.Data)
 			if convertErr != nil {
 				fmt.Printf("unexpected err : %v", convertErr)
