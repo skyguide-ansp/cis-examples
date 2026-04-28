@@ -33,7 +33,7 @@ type TrafficDataAndProvider struct {
 
 // pass configuration to create a new client for display provider
 // as for uss and dss there might be the same server url, but the scopes and audiences may changes
-func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credential, dssBaseUrl, dssBasePath, ussBaseUrl, ussBasePath string) (*SurveillanceClientV0, error) {
+func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credential, dssBaseUrl, dssBasePath string) (*SurveillanceClientV0, error) {
 	dssAuthorizer := &httpUtil.Authorizer{
 		Credential: dssCredential,
 		Token:      nil,
@@ -53,14 +53,6 @@ func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credent
 		}),
 	)
 
-	ussOpenApiClient, err := surveillance_uss_v0.NewClientWithResponses(
-		ussBaseUrl+"/"+strings.TrimPrefix(ussBasePath, "/"),
-		surveillance_uss_v0.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			_, tokenErr := ussAuthorizer.SetAuthorizationHeader(ctx, req)
-			return tokenErr
-		}),
-	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +61,6 @@ func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credent
 		DssConfig: dssAuthorizer,
 		UssConfig: ussAuthorizer,
 		dss:       dssOpenApiClient,
-		uss:       ussOpenApiClient,
 	}, nil
 }
 
@@ -135,7 +126,15 @@ func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context,
 
 	provider := area.Owner
 
-	resp, err := client.uss.StreamFlights(ctx, &surveillance_uss_v0.StreamFlightsParams{
+	ussOpenApiClient, err := surveillance_uss_v0.NewClientWithResponses(
+		area.UssBaseUrl,
+		surveillance_uss_v0.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			_, tokenErr := client.UssConfig.SetAuthorizationHeader(ctx, req)
+			return tokenErr
+		}),
+	)
+
+	resp, err := ussOpenApiClient.StreamFlights(ctx, &surveillance_uss_v0.StreamFlightsParams{
 		View: view,
 	})
 	if err != nil {

@@ -16,8 +16,6 @@ import (
 // starts a client that is in charge to retrieve the data
 func main() {
 	// flags
-	ussUrl := flag.String("uss-url", "", "base url of the uss")
-	ussBasePath := flag.String("uss-base-path", "/surveillance/v0", "base path of the uss")
 	dssUrl := flag.String("dss-url", "", "base url of the dss")
 	dssBasePath := flag.String("dss-base-path", "/surveillance/v0", "base path for the dss")
 	oidcTokenUrl := flag.String("oidc-url", "", "url of the authentication server, token endpoint exected")
@@ -54,8 +52,6 @@ func main() {
 		UssCredentials,
 		*dssUrl,
 		*dssBasePath,
-		*ussUrl,
-		*ussBasePath,
 	)
 	if err != nil {
 		panic(err)
