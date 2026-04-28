@@ -4,10 +4,7 @@
 package surveillance_uss_v0
 
 import (
-	"encoding/json"
 	"time"
-
-	"github.com/oapi-codegen/runtime"
 )
 
 const (
@@ -149,22 +146,16 @@ type AircraftId struct {
 // AircraftPosition Position of an aircraft.
 type AircraftPosition struct {
 	// Alt Geodetic altitude (NOT altitude above launch, altitude above ground, or EGM96): aircraft distance above the WGS84 ellipsoid as measured along a line that passes through the aircraft and is normal to the surface of the WGS84 ellipsoid.  This value is provided in meters and must have a minimum resolution of 1 meter.  Invalid, No Value or Unknown is -1000 m.
-	Alt *float32              `json:"alt,omitempty"`
-	Lat *AircraftPosition_Lat `json:"lat,omitempty"`
-	Lng *AircraftPosition_Lng `json:"lng,omitempty"`
+	Alt *float32 `json:"alt,omitempty"`
+
+	// Lat Degrees of latitude north of the equator, with reference to the WGS84 ellipsoid.  Invalid, No Value, or Unknown is 0 degrees (both Lat/Lon).
+	Lat *Latitude `json:"lat,omitempty"`
+
+	// Lng Degrees of longitude east of the Prime Meridian, with reference to the WGS84 ellipsoid.  Invalid, No Value, or Unknown is 0 degrees (both Lat/Lon).
+	Lng *Longitude `json:"lng,omitempty"`
 
 	// PressureAltitude The uncorrected altitude (based on reference standard 29.92 inHg, 1013.25 mb) provides a reference for algorithms that utilize "altitude deltas" between aircraft.  This value is provided in meters and must have a minimum resolution of 1 meter.  Invalid, No Value or Unknown is -1000 m.
 	PressureAltitude *float32 `json:"pressure_altitude,omitempty"`
-}
-
-// AircraftPosition_Lat defines model for AircraftPosition.Lat.
-type AircraftPosition_Lat struct {
-	union json.RawMessage
-}
-
-// AircraftPosition_Lng defines model for AircraftPosition.Lng.
-type AircraftPosition_Lng struct {
-	union json.RawMessage
 }
 
 // AircraftState defines model for AircraftState.
@@ -173,21 +164,14 @@ type AircraftState struct {
 	Position AircraftPosition `json:"position"`
 
 	// Speed Ground speed of flight in meters per second.  Invalid, No Value, or Unknown is 255 m/s, if speed is >254.25 m/s then report 254.25 m/s.
-	Speed *float32 `json:"speed,omitempty"`
-
-	// Timestamp Time at which this state was valid.  This may be the time coming from the source, such as a GPS, or the time when the system computes the values using an algorithm such as an Extended Kalman Filter (EKF).  Timestamp must be expressed with a minimum resolution of 1/10th of a second.
-	Timestamp AircraftState_Timestamp `json:"timestamp"`
+	Speed     *float32 `json:"speed,omitempty"`
+	Timestamp Time     `json:"timestamp"`
 
 	// Track Direction of flight expressed as a "True North-based" ground track angle.  This value is provided in clockwise degrees with a minimum resolution of 1 degree.  If aircraft is not moving horizontally, use the "Unknown" value.  A value of 361 indicates invalid, no value, or unknown.
 	Track *float32 `json:"track,omitempty"`
 
 	// VerticalSpeed Speed up (vertically) WGS84-HAE, m/s.  Invalid, No Value, or Unknown is 63 m/s, if speed is >62 m/s then report 62 m/s.
 	VerticalSpeed *float32 `json:"vertical_speed,omitempty"`
-}
-
-// AircraftState_Timestamp Time at which this state was valid.  This may be the time coming from the source, such as a GPS, or the time when the system computes the values using an algorithm such as an Extended Kalman Filter (EKF).  Timestamp must be expressed with a minimum resolution of 1/10th of a second.
-type AircraftState_Timestamp struct {
-	union json.RawMessage
 }
 
 // AircraftType defines model for AircraftType.
@@ -230,10 +214,8 @@ type DataSource struct {
 	Id string `json:"id"`
 }
 
-// EntityUUID Universally-unique identifier for an Entity communicated through the DSS.  Formatted as UUIDv4.
-type EntityUUID struct {
-	union json.RawMessage
-}
+// EntityUUID UUID v4.
+type EntityUUID = UUIDv4
 
 // ErrorResponse Human-readable string returned when an error occurs as a result of a USS - DSS transaction.
 type ErrorResponse struct {
@@ -258,13 +240,8 @@ type FlightEvent struct {
 
 // GetTrafficSurveilledAreaDetailsResponse Response to request for the details of an surveilled area with the given ID.
 type GetTrafficSurveilledAreaDetailsResponse struct {
-	// Extents The extents of the Traffic Surveilled Area.
-	Extents GetTrafficSurveilledAreaDetailsResponse_Extents `json:"extents"`
-}
-
-// GetTrafficSurveilledAreaDetailsResponse_Extents The extents of the Traffic Surveilled Area.
-type GetTrafficSurveilledAreaDetailsResponse_Extents struct {
-	union json.RawMessage
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
 }
 
 // LatLngPoint Point on the earth's surface.
@@ -299,10 +276,8 @@ type Radius struct {
 // RadiusUnits FIXM-compatible units.  Only meters ("M") are acceptable for UTM.
 type RadiusUnits string
 
-// SubscriptionUUID Universally-unique identifier for a Subscription communicated through the DSS.  Formatted as UUIDv4.
-type SubscriptionUUID struct {
-	union json.RawMessage
-}
+// SubscriptionUUID UUID v4.
+type SubscriptionUUID = UUIDv4
 
 // Time defines model for Time.
 type Time struct {
@@ -323,495 +298,27 @@ type View = string
 
 // Volume3D A three-dimensional geographic volume consisting of a vertically-extruded shape. Exactly one outline must be specified.
 type Volume3D struct {
-	// AltitudeLower Minimum bounding altitude of this volume. Must be less than altitude_upper, if specified.
-	AltitudeLower *Volume3D_AltitudeLower `json:"altitude_lower,omitempty"`
+	AltitudeLower *Altitude `json:"altitude_lower,omitempty"`
+	AltitudeUpper *Altitude `json:"altitude_upper,omitempty"`
 
-	// AltitudeUpper Maximum bounding altitude of this volume. Must be greater than altitude_lower, if specified.
-	AltitudeUpper *Volume3D_AltitudeUpper `json:"altitude_upper,omitempty"`
+	// OutlineCircle A circular area on the surface of the earth.
+	OutlineCircle *Circle `json:"outline_circle,omitempty"`
 
-	// OutlineCircle A circular geographic shape on the surface of the earth.
-	OutlineCircle *Volume3D_OutlineCircle `json:"outline_circle,omitempty"`
-
-	// OutlinePolygon A polygonal geographic shape on the surface of the earth.
-	OutlinePolygon *Volume3D_OutlinePolygon `json:"outline_polygon,omitempty"`
-}
-
-// Volume3D_AltitudeLower Minimum bounding altitude of this volume. Must be less than altitude_upper, if specified.
-type Volume3D_AltitudeLower struct {
-	union json.RawMessage
-}
-
-// Volume3D_AltitudeUpper Maximum bounding altitude of this volume. Must be greater than altitude_lower, if specified.
-type Volume3D_AltitudeUpper struct {
-	union json.RawMessage
-}
-
-// Volume3D_OutlineCircle A circular geographic shape on the surface of the earth.
-type Volume3D_OutlineCircle struct {
-	union json.RawMessage
-}
-
-// Volume3D_OutlinePolygon A polygonal geographic shape on the surface of the earth.
-type Volume3D_OutlinePolygon struct {
-	union json.RawMessage
+	// OutlinePolygon An enclosed area on the earth. The bounding edges of this polygon are defined to be the shortest paths between connected vertices.  This means, for instance, that the edge between two points both defined at a particular latitude is not generally contained at that latitude. The winding order must be interpreted as the order which produces the smaller area. The path between two vertices is defined to be the shortest possible path between those vertices. Edges may not cross. Vertices may not be duplicated.  In particular, the final polygon vertex must not be identical to the first vertex.
+	OutlinePolygon *Polygon `json:"outline_polygon,omitempty"`
 }
 
 // Volume4D Contiguous block of geographic spacetime.
 type Volume4D struct {
-	// TimeEnd End time of this volume. Must be after time_start.
-	TimeEnd *Volume4D_TimeEnd `json:"time_end,omitempty"`
-
-	// TimeStart Beginning time of this volume. Must be before time_end.
-	TimeStart *Volume4D_TimeStart `json:"time_start,omitempty"`
+	TimeEnd   *Time `json:"time_end,omitempty"`
+	TimeStart *Time `json:"time_start,omitempty"`
 
 	// Volume A three-dimensional geographic volume consisting of a vertically-extruded shape. Exactly one outline must be specified.
 	Volume Volume3D `json:"volume"`
-}
-
-// Volume4D_TimeEnd End time of this volume. Must be after time_start.
-type Volume4D_TimeEnd struct {
-	union json.RawMessage
-}
-
-// Volume4D_TimeStart Beginning time of this volume. Must be before time_end.
-type Volume4D_TimeStart struct {
-	union json.RawMessage
 }
 
 // StreamFlightsParams defines parameters for StreamFlights.
 type StreamFlightsParams struct {
 	// View The area of this view: lat1,lng1,lat2,lng2. The view is the smallest box bounded by the provided corner points.
 	View View `form:"view" json:"view"`
-}
-
-// AsLatitude returns the union data inside the AircraftPosition_Lat as a Latitude
-func (t AircraftPosition_Lat) AsLatitude() (Latitude, error) {
-	var body Latitude
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromLatitude overwrites any union data inside the AircraftPosition_Lat as the provided Latitude
-func (t *AircraftPosition_Lat) FromLatitude(v Latitude) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeLatitude performs a merge with any union data inside the AircraftPosition_Lat, using the provided Latitude
-func (t *AircraftPosition_Lat) MergeLatitude(v Latitude) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t AircraftPosition_Lat) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *AircraftPosition_Lat) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsLongitude returns the union data inside the AircraftPosition_Lng as a Longitude
-func (t AircraftPosition_Lng) AsLongitude() (Longitude, error) {
-	var body Longitude
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromLongitude overwrites any union data inside the AircraftPosition_Lng as the provided Longitude
-func (t *AircraftPosition_Lng) FromLongitude(v Longitude) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeLongitude performs a merge with any union data inside the AircraftPosition_Lng, using the provided Longitude
-func (t *AircraftPosition_Lng) MergeLongitude(v Longitude) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t AircraftPosition_Lng) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *AircraftPosition_Lng) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the AircraftState_Timestamp as a Time
-func (t AircraftState_Timestamp) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the AircraftState_Timestamp as the provided Time
-func (t *AircraftState_Timestamp) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the AircraftState_Timestamp, using the provided Time
-func (t *AircraftState_Timestamp) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t AircraftState_Timestamp) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *AircraftState_Timestamp) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsUUIDv4 returns the union data inside the EntityUUID as a UUIDv4
-func (t EntityUUID) AsUUIDv4() (UUIDv4, error) {
-	var body UUIDv4
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromUUIDv4 overwrites any union data inside the EntityUUID as the provided UUIDv4
-func (t *EntityUUID) FromUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeUUIDv4 performs a merge with any union data inside the EntityUUID, using the provided UUIDv4
-func (t *EntityUUID) MergeUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t EntityUUID) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *EntityUUID) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsVolume4D returns the union data inside the GetTrafficSurveilledAreaDetailsResponse_Extents as a Volume4D
-func (t GetTrafficSurveilledAreaDetailsResponse_Extents) AsVolume4D() (Volume4D, error) {
-	var body Volume4D
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromVolume4D overwrites any union data inside the GetTrafficSurveilledAreaDetailsResponse_Extents as the provided Volume4D
-func (t *GetTrafficSurveilledAreaDetailsResponse_Extents) FromVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeVolume4D performs a merge with any union data inside the GetTrafficSurveilledAreaDetailsResponse_Extents, using the provided Volume4D
-func (t *GetTrafficSurveilledAreaDetailsResponse_Extents) MergeVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t GetTrafficSurveilledAreaDetailsResponse_Extents) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *GetTrafficSurveilledAreaDetailsResponse_Extents) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsUUIDv4 returns the union data inside the SubscriptionUUID as a UUIDv4
-func (t SubscriptionUUID) AsUUIDv4() (UUIDv4, error) {
-	var body UUIDv4
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromUUIDv4 overwrites any union data inside the SubscriptionUUID as the provided UUIDv4
-func (t *SubscriptionUUID) FromUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeUUIDv4 performs a merge with any union data inside the SubscriptionUUID, using the provided UUIDv4
-func (t *SubscriptionUUID) MergeUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t SubscriptionUUID) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *SubscriptionUUID) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsAltitude returns the union data inside the Volume3D_AltitudeLower as a Altitude
-func (t Volume3D_AltitudeLower) AsAltitude() (Altitude, error) {
-	var body Altitude
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAltitude overwrites any union data inside the Volume3D_AltitudeLower as the provided Altitude
-func (t *Volume3D_AltitudeLower) FromAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAltitude performs a merge with any union data inside the Volume3D_AltitudeLower, using the provided Altitude
-func (t *Volume3D_AltitudeLower) MergeAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_AltitudeLower) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_AltitudeLower) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsAltitude returns the union data inside the Volume3D_AltitudeUpper as a Altitude
-func (t Volume3D_AltitudeUpper) AsAltitude() (Altitude, error) {
-	var body Altitude
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAltitude overwrites any union data inside the Volume3D_AltitudeUpper as the provided Altitude
-func (t *Volume3D_AltitudeUpper) FromAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAltitude performs a merge with any union data inside the Volume3D_AltitudeUpper, using the provided Altitude
-func (t *Volume3D_AltitudeUpper) MergeAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_AltitudeUpper) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_AltitudeUpper) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsCircle returns the union data inside the Volume3D_OutlineCircle as a Circle
-func (t Volume3D_OutlineCircle) AsCircle() (Circle, error) {
-	var body Circle
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromCircle overwrites any union data inside the Volume3D_OutlineCircle as the provided Circle
-func (t *Volume3D_OutlineCircle) FromCircle(v Circle) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeCircle performs a merge with any union data inside the Volume3D_OutlineCircle, using the provided Circle
-func (t *Volume3D_OutlineCircle) MergeCircle(v Circle) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_OutlineCircle) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_OutlineCircle) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsPolygon returns the union data inside the Volume3D_OutlinePolygon as a Polygon
-func (t Volume3D_OutlinePolygon) AsPolygon() (Polygon, error) {
-	var body Polygon
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromPolygon overwrites any union data inside the Volume3D_OutlinePolygon as the provided Polygon
-func (t *Volume3D_OutlinePolygon) FromPolygon(v Polygon) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergePolygon performs a merge with any union data inside the Volume3D_OutlinePolygon, using the provided Polygon
-func (t *Volume3D_OutlinePolygon) MergePolygon(v Polygon) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_OutlinePolygon) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_OutlinePolygon) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the Volume4D_TimeEnd as a Time
-func (t Volume4D_TimeEnd) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the Volume4D_TimeEnd as the provided Time
-func (t *Volume4D_TimeEnd) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the Volume4D_TimeEnd, using the provided Time
-func (t *Volume4D_TimeEnd) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume4D_TimeEnd) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume4D_TimeEnd) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the Volume4D_TimeStart as a Time
-func (t Volume4D_TimeStart) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the Volume4D_TimeStart as the provided Time
-func (t *Volume4D_TimeStart) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the Volume4D_TimeStart, using the provided Time
-func (t *Volume4D_TimeStart) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume4D_TimeStart) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume4D_TimeStart) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
 }

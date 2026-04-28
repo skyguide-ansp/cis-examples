@@ -4,10 +4,7 @@
 package surveillance_dss_v0
 
 import (
-	"encoding/json"
 	"time"
-
-	"github.com/oapi-codegen/runtime"
 )
 
 const (
@@ -101,73 +98,43 @@ type Circle struct {
 
 // CreateSubscriptionParameters Parameters for a request to create a subscription in the DSS.
 type CreateSubscriptionParameters struct {
-	// Extents The spacetime extents of the volume to subscribe to.
-	//
-	// This subscription will automatically be deleted after its end time if it has not been refreshed by then.  If end time is not specified, the value will be chosen automatically by the DSS.
-	//
-	// Note that some Entities triggering notifications may lie entirely outside the requested area.
-	Extents CreateSubscriptionParameters_Extents `json:"extents"`
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
 
-	// UssBaseUrl Base URL for the USS's implementation of the USS API, including the POST traffic_surveilled_areas endpoint where notifications for this Subscription will be received.
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
 	UssBaseUrl SubscriptionUSSBaseURL `json:"uss_base_url"`
-}
-
-// CreateSubscriptionParameters_Extents The spacetime extents of the volume to subscribe to.
-//
-// This subscription will automatically be deleted after its end time if it has not been refreshed by then.  If end time is not specified, the value will be chosen automatically by the DSS.
-//
-// Note that some Entities triggering notifications may lie entirely outside the requested area.
-type CreateSubscriptionParameters_Extents struct {
-	union json.RawMessage
 }
 
 // CreateTrafficSurveilledAreaParameters Parameters for a request to create an Traffic Surveilled Area in the DSS.
 type CreateTrafficSurveilledAreaParameters struct {
-	// Extents The bounding spacetime extents of this Traffic Surveilled Area.  End time must be specified.  If start time is not specified, it will be set to the current time.  Start times in the past should be rejected by the DSS, except that it may adjust very recent start times to the current time.
-	//
-	// These extents should not reveal any sensitive information about the flight or flights within them.  This means, for instance, that extents should not tightly-wrap a flight path, nor should they generally be centered around the takeoff point of a single flight.
-	Extents CreateTrafficSurveilledAreaParameters_Extents `json:"extents"`
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
 
-	// UssBaseUrl Base URL for the USS's implementation of the USS API, including the GET flights and GET flights/{id}/details endpoints where flight information can be obtained.
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
 	UssBaseUrl FlightsUSSBaseURL `json:"uss_base_url"`
-}
-
-// CreateTrafficSurveilledAreaParameters_Extents The bounding spacetime extents of this Traffic Surveilled Area.  End time must be specified.  If start time is not specified, it will be set to the current time.  Start times in the past should be rejected by the DSS, except that it may adjust very recent start times to the current time.
-//
-// These extents should not reveal any sensitive information about the flight or flights within them.  This means, for instance, that extents should not tightly-wrap a flight path, nor should they generally be centered around the takeoff point of a single flight.
-type CreateTrafficSurveilledAreaParameters_Extents struct {
-	union json.RawMessage
 }
 
 // DeleteSubscriptionResponse Response for a successful request to delete an Subscription.
 type DeleteSubscriptionResponse struct {
-	// Subscription The Subscription which was deleted.
-	Subscription DeleteSubscriptionResponse_Subscription `json:"subscription"`
-}
-
-// DeleteSubscriptionResponse_Subscription The Subscription which was deleted.
-type DeleteSubscriptionResponse_Subscription struct {
-	union json.RawMessage
+	// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
+	Subscription Subscription `json:"subscription"`
 }
 
 // DeleteTrafficSurveilledAreaResponse Response for a request to delete an Traffic Surveilled Area.
 type DeleteTrafficSurveilledAreaResponse struct {
-	// ServiceArea Traffic Surveilled Area that was just deleted.
-	ServiceArea DeleteTrafficSurveilledAreaResponse_ServiceArea `json:"service_area"`
+	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	ServiceArea TrafficSurveilledArea `json:"service_area"`
 
 	// Subscribers DSS subscribers that this client now has the obligation to notify of the Traffic Surveilled Area just deleted.  This client must call POST for each provided URL according to the `/uss/traffic_surveilled_areas` path API.
 	Subscribers *[]SubscriberToNotify `json:"subscribers,omitempty"`
 }
 
-// DeleteTrafficSurveilledAreaResponse_ServiceArea Traffic Surveilled Area that was just deleted.
-type DeleteTrafficSurveilledAreaResponse_ServiceArea struct {
-	union json.RawMessage
-}
-
-// EntityUUID Universally-unique identifier for an Entity communicated through the DSS.  Formatted as UUIDv4.
-type EntityUUID struct {
-	union json.RawMessage
-}
+// EntityUUID UUID v4.
+type EntityUUID = UUIDv4
 
 // ErrorResponse Human-readable string returned when an error occurs as a result of a USS - DSS transaction.
 type ErrorResponse struct {
@@ -175,10 +142,10 @@ type ErrorResponse struct {
 	Message *string `json:"message,omitempty"`
 }
 
-// FlightsUSSBaseURL Base URL for the USS's implementation of the USS API, including the GET flights and GET flights/{id}/details endpoints where flight information can be obtained.
-type FlightsUSSBaseURL struct {
-	union json.RawMessage
-}
+// FlightsUSSBaseURL The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+// Accordingly, this URL may not have a trailing '/' character.
+type FlightsUSSBaseURL = USSBaseURL
 
 // GeoPolygonString Plain-string representation of a geographic polygon consisting of at least three geographic
 // points describing a closed polygon on the earth.  Each point consists of latitude,longitude
@@ -226,27 +193,17 @@ type PutSubscriptionResponse struct {
 	// ServiceAreas Traffic Surveilled Areas in or near the subscription area at the time of creation/update, if `traffic_surveilled_area_url` callback was specified.
 	ServiceAreas *[]TrafficSurveilledArea `json:"service_areas,omitempty"`
 
-	// Subscription Result of the operation on the subscription.
-	Subscription PutSubscriptionResponse_Subscription `json:"subscription"`
-}
-
-// PutSubscriptionResponse_Subscription Result of the operation on the subscription.
-type PutSubscriptionResponse_Subscription struct {
-	union json.RawMessage
+	// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
+	Subscription Subscription `json:"subscription"`
 }
 
 // PutTrafficSurveilledAreaResponse Response to a request to create or update a reference to an Traffic Surveilled Area in the DSS.
 type PutTrafficSurveilledAreaResponse struct {
-	// ServiceArea Resulting surveilled area stored in DSS.
-	ServiceArea PutTrafficSurveilledAreaResponse_ServiceArea `json:"service_area"`
+	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	ServiceArea TrafficSurveilledArea `json:"service_area"`
 
 	// Subscribers DSS subscribers that this client now has the obligation to notify of the Traffic Surveilled Area changes just made.  This client must call POST for each provided URL according to the `/uss/traffic_surveilled_areas/{id}` path API.
 	Subscribers *[]SubscriberToNotify `json:"subscribers,omitempty"`
-}
-
-// PutTrafficSurveilledAreaResponse_ServiceArea Resulting surveilled area stored in DSS.
-type PutTrafficSurveilledAreaResponse_ServiceArea struct {
-	union json.RawMessage
 }
 
 // Radius defines model for Radius.
@@ -278,55 +235,30 @@ type SubscriberToNotify struct {
 	// Subscriptions Subscription(s) prompting this notification.
 	Subscriptions []SubscriptionState `json:"subscriptions"`
 
-	// Url The endpoint that the client mutating the airspace should provide the update to.  API depends on the DSS action taken that triggered this notification request.
-	Url SubscriberToNotify_Url `json:"url"`
-}
-
-// SubscriberToNotify_Url The endpoint that the client mutating the airspace should provide the update to.  API depends on the DSS action taken that triggered this notification request.
-type SubscriberToNotify_Url struct {
-	union json.RawMessage
+	// Url Valid http or https URL.
+	Url URL `json:"url"`
 }
 
 // Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
 type Subscription struct {
-	// Id Unique identifier for this subscription.
-	Id                Subscription_Id                 `json:"id"`
-	NotificationIndex *Subscription_NotificationIndex `json:"notification_index,omitempty"`
+	// Id UUID v4.
+	Id SubscriptionUUID `json:"id"`
+
+	// NotificationIndex Tracks the notifications sent for a subscription so the subscriber can detect missed notifications more easily.
+	NotificationIndex *SubscriptionNotificationIndex `json:"notification_index,omitempty"`
 
 	// Owner Assigned by the DSS based on creating client's ID (via access token).  Used for restricting mutation and deletion operations to owner.
-	Owner string `json:"owner"`
+	Owner     string `json:"owner"`
+	TimeEnd   *Time  `json:"time_end,omitempty"`
+	TimeStart *Time  `json:"time_start,omitempty"`
 
-	// TimeEnd If set, this subscription will be automatically removed after this time.
-	TimeEnd *Subscription_TimeEnd `json:"time_end,omitempty"`
-
-	// TimeStart If set, this Subscription will not generate any notifications before this time.
-	TimeStart *Subscription_TimeStart `json:"time_start,omitempty"`
-
-	// UssBaseUrl Base URL for the USS's implementation of the USS API, including the POST traffic_surveilled_areas endpoint where notifications for this Subscription will be received.
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
 	UssBaseUrl SubscriptionUSSBaseURL `json:"uss_base_url"`
 
 	// Version A version string used to reference an object at a particular point in time. Any updates to an object must contain the corresponding version to maintain idempotent updates.
 	Version Version `json:"version"`
-}
-
-// Subscription_Id Unique identifier for this subscription.
-type Subscription_Id struct {
-	union json.RawMessage
-}
-
-// Subscription_NotificationIndex defines model for Subscription.NotificationIndex.
-type Subscription_NotificationIndex struct {
-	union json.RawMessage
-}
-
-// Subscription_TimeEnd If set, this subscription will be automatically removed after this time.
-type Subscription_TimeEnd struct {
-	union json.RawMessage
-}
-
-// Subscription_TimeStart If set, this Subscription will not generate any notifications before this time.
-type Subscription_TimeStart struct {
-	union json.RawMessage
 }
 
 // SubscriptionNotificationIndex Tracks the notifications sent for a subscription so the subscriber can detect missed notifications more easily.
@@ -334,26 +266,20 @@ type SubscriptionNotificationIndex = int32
 
 // SubscriptionState State of Subscription which is causing a notification to be sent.
 type SubscriptionState struct {
-	NotificationIndex *SubscriptionState_NotificationIndex `json:"notification_index,omitempty"`
+	// NotificationIndex Tracks the notifications sent for a subscription so the subscriber can detect missed notifications more easily.
+	NotificationIndex *SubscriptionNotificationIndex `json:"notification_index,omitempty"`
 
-	// SubscriptionId Universally-unique identifier for a Subscription communicated through the DSS.  Formatted as UUIDv4.
+	// SubscriptionId UUID v4.
 	SubscriptionId SubscriptionUUID `json:"subscription_id"`
 }
 
-// SubscriptionState_NotificationIndex defines model for SubscriptionState.NotificationIndex.
-type SubscriptionState_NotificationIndex struct {
-	union json.RawMessage
-}
+// SubscriptionUSSBaseURL The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+// Accordingly, this URL may not have a trailing '/' character.
+type SubscriptionUSSBaseURL = USSBaseURL
 
-// SubscriptionUSSBaseURL Base URL for the USS's implementation of the USS API, including the POST traffic_surveilled_areas endpoint where notifications for this Subscription will be received.
-type SubscriptionUSSBaseURL struct {
-	union json.RawMessage
-}
-
-// SubscriptionUUID Universally-unique identifier for a Subscription communicated through the DSS.  Formatted as UUIDv4.
-type SubscriptionUUID struct {
-	union json.RawMessage
-}
+// SubscriptionUUID UUID v4.
+type SubscriptionUUID = UUIDv4
 
 // Time defines model for Time.
 type Time struct {
@@ -368,38 +294,21 @@ type TimeFormat string
 
 // TrafficSurveilledArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
 type TrafficSurveilledArea struct {
-	// Id Unique identifier for this Traffic Surveilled Area.
-	Id TrafficSurveilledArea_Id `json:"id"`
+	// Id UUID v4.
+	Id EntityUUID `json:"id"`
 
 	// Owner Assigned by the DSS based on creating client's ID (via access token).  Used for restricting mutation and deletion operations to owner.
-	Owner string `json:"owner"`
+	Owner     string `json:"owner"`
+	TimeEnd   Time   `json:"time_end"`
+	TimeStart Time   `json:"time_start"`
 
-	// TimeEnd End time of service.
-	TimeEnd TrafficSurveilledArea_TimeEnd `json:"time_end"`
-
-	// TimeStart Beginning time of service.
-	TimeStart TrafficSurveilledArea_TimeStart `json:"time_start"`
-
-	// UssBaseUrl Base URL for the USS's implementation of the USS API, including the GET flights and GET flights/{id}/details endpoints where flight information can be obtained.
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
 	UssBaseUrl FlightsUSSBaseURL `json:"uss_base_url"`
 
 	// Version A version string used to reference an object at a particular point in time. Any updates to an object must contain the corresponding version to maintain idempotent updates.
 	Version Version `json:"version"`
-}
-
-// TrafficSurveilledArea_Id Unique identifier for this Traffic Surveilled Area.
-type TrafficSurveilledArea_Id struct {
-	union json.RawMessage
-}
-
-// TrafficSurveilledArea_TimeEnd End time of service.
-type TrafficSurveilledArea_TimeEnd struct {
-	union json.RawMessage
-}
-
-// TrafficSurveilledArea_TimeStart Beginning time of service.
-type TrafficSurveilledArea_TimeStart struct {
-	union json.RawMessage
 }
 
 // URL Valid http or https URL.
@@ -415,42 +324,24 @@ type UUIDv4 = string
 
 // UpdateSubscriptionParameters Parameters for a request to update a subscription in the DSS.
 type UpdateSubscriptionParameters struct {
-	// Extents The spacetime extents of the volume to subscribe to.
-	//
-	// This subscription will automatically be deleted after its end time if it has not been refreshed by then.  If end time is not specified, the value will be chosen automatically by the DSS.
-	//
-	// Note that some Entities triggering notifications may lie entirely outside the requested area.
-	Extents UpdateSubscriptionParameters_Extents `json:"extents"`
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
 
-	// UssBaseUrl Base URL for the USS's implementation of the USS API, including the POST traffic_surveilled_areas endpoint where notifications for this Subscription will be received.
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
 	UssBaseUrl SubscriptionUSSBaseURL `json:"uss_base_url"`
-}
-
-// UpdateSubscriptionParameters_Extents The spacetime extents of the volume to subscribe to.
-//
-// This subscription will automatically be deleted after its end time if it has not been refreshed by then.  If end time is not specified, the value will be chosen automatically by the DSS.
-//
-// Note that some Entities triggering notifications may lie entirely outside the requested area.
-type UpdateSubscriptionParameters_Extents struct {
-	union json.RawMessage
 }
 
 // UpdateTrafficSurveilledAreaParameters Parameters for a request to update an Traffic Surveilled Area in the DSS.
 type UpdateTrafficSurveilledAreaParameters struct {
-	// Extents The bounding spacetime extents of this Traffic Surveilled Area.  End time must be specified.  If start time is not specified, it will remain unchanged.  Start times in the past should be rejected by the DSS unless they are unchanged from the Traffic Surveilled Area's current start time.
-	//
-	// These extents should not reveal any sensitive information about the flight or flights within them.  This means, for instance, that extents should not tightly-wrap a flight path, nor should they generally be centered around the takeoff point of a single flight.
-	Extents UpdateTrafficSurveilledAreaParameters_Extents `json:"extents"`
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
 
-	// UssBaseUrl Base URL for the USS's implementation of the USS API, including the GET flights and GET flights/{id}/details endpoints where flight information can be obtained.
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
 	UssBaseUrl FlightsUSSBaseURL `json:"uss_base_url"`
-}
-
-// UpdateTrafficSurveilledAreaParameters_Extents The bounding spacetime extents of this Traffic Surveilled Area.  End time must be specified.  If start time is not specified, it will remain unchanged.  Start times in the past should be rejected by the DSS unless they are unchanged from the Traffic Surveilled Area's current start time.
-//
-// These extents should not reveal any sensitive information about the flight or flights within them.  This means, for instance, that extents should not tightly-wrap a flight path, nor should they generally be centered around the takeoff point of a single flight.
-type UpdateTrafficSurveilledAreaParameters_Extents struct {
-	union json.RawMessage
 }
 
 // Version A version string used to reference an object at a particular point in time. Any updates to an object must contain the corresponding version to maintain idempotent updates.
@@ -461,59 +352,23 @@ type View = string
 
 // Volume3D A three-dimensional geographic volume consisting of a vertically-extruded shape. Exactly one outline must be specified.
 type Volume3D struct {
-	// AltitudeLower Minimum bounding altitude of this volume. Must be less than altitude_upper, if specified.
-	AltitudeLower *Volume3D_AltitudeLower `json:"altitude_lower,omitempty"`
+	AltitudeLower *Altitude `json:"altitude_lower,omitempty"`
+	AltitudeUpper *Altitude `json:"altitude_upper,omitempty"`
 
-	// AltitudeUpper Maximum bounding altitude of this volume. Must be greater than altitude_lower, if specified.
-	AltitudeUpper *Volume3D_AltitudeUpper `json:"altitude_upper,omitempty"`
+	// OutlineCircle A circular area on the surface of the earth.
+	OutlineCircle *Circle `json:"outline_circle,omitempty"`
 
-	// OutlineCircle A circular geographic shape on the surface of the earth.
-	OutlineCircle *Volume3D_OutlineCircle `json:"outline_circle,omitempty"`
-
-	// OutlinePolygon A polygonal geographic shape on the surface of the earth.
-	OutlinePolygon *Volume3D_OutlinePolygon `json:"outline_polygon,omitempty"`
-}
-
-// Volume3D_AltitudeLower Minimum bounding altitude of this volume. Must be less than altitude_upper, if specified.
-type Volume3D_AltitudeLower struct {
-	union json.RawMessage
-}
-
-// Volume3D_AltitudeUpper Maximum bounding altitude of this volume. Must be greater than altitude_lower, if specified.
-type Volume3D_AltitudeUpper struct {
-	union json.RawMessage
-}
-
-// Volume3D_OutlineCircle A circular geographic shape on the surface of the earth.
-type Volume3D_OutlineCircle struct {
-	union json.RawMessage
-}
-
-// Volume3D_OutlinePolygon A polygonal geographic shape on the surface of the earth.
-type Volume3D_OutlinePolygon struct {
-	union json.RawMessage
+	// OutlinePolygon An enclosed area on the earth. The bounding edges of this polygon are defined to be the shortest paths between connected vertices.  This means, for instance, that the edge between two points both defined at a particular latitude is not generally contained at that latitude. The winding order must be interpreted as the order which produces the smaller area. The path between two vertices is defined to be the shortest possible path between those vertices. Edges may not cross. Vertices may not be duplicated.  In particular, the final polygon vertex must not be identical to the first vertex.
+	OutlinePolygon *Polygon `json:"outline_polygon,omitempty"`
 }
 
 // Volume4D Contiguous block of geographic spacetime.
 type Volume4D struct {
-	// TimeEnd End time of this volume. Must be after time_start.
-	TimeEnd *Volume4D_TimeEnd `json:"time_end,omitempty"`
-
-	// TimeStart Beginning time of this volume. Must be before time_end.
-	TimeStart *Volume4D_TimeStart `json:"time_start,omitempty"`
+	TimeEnd   *Time `json:"time_end,omitempty"`
+	TimeStart *Time `json:"time_start,omitempty"`
 
 	// Volume A three-dimensional geographic volume consisting of a vertically-extruded shape. Exactly one outline must be specified.
 	Volume Volume3D `json:"volume"`
-}
-
-// Volume4D_TimeEnd End time of this volume. Must be after time_start.
-type Volume4D_TimeEnd struct {
-	union json.RawMessage
-}
-
-// Volume4D_TimeStart Beginning time of this volume. Must be before time_end.
-type Volume4D_TimeStart struct {
-	union json.RawMessage
 }
 
 // SearchSubscriptionsParams defines parameters for SearchSubscriptions.
@@ -545,975 +400,3 @@ type CreateTrafficSurveilledAreaJSONRequestBody = CreateTrafficSurveilledAreaPar
 
 // UpdateTrafficSurveilledAreaJSONRequestBody defines body for UpdateTrafficSurveilledArea for application/json ContentType.
 type UpdateTrafficSurveilledAreaJSONRequestBody = UpdateTrafficSurveilledAreaParameters
-
-// AsVolume4D returns the union data inside the CreateSubscriptionParameters_Extents as a Volume4D
-func (t CreateSubscriptionParameters_Extents) AsVolume4D() (Volume4D, error) {
-	var body Volume4D
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromVolume4D overwrites any union data inside the CreateSubscriptionParameters_Extents as the provided Volume4D
-func (t *CreateSubscriptionParameters_Extents) FromVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeVolume4D performs a merge with any union data inside the CreateSubscriptionParameters_Extents, using the provided Volume4D
-func (t *CreateSubscriptionParameters_Extents) MergeVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t CreateSubscriptionParameters_Extents) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *CreateSubscriptionParameters_Extents) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsVolume4D returns the union data inside the CreateTrafficSurveilledAreaParameters_Extents as a Volume4D
-func (t CreateTrafficSurveilledAreaParameters_Extents) AsVolume4D() (Volume4D, error) {
-	var body Volume4D
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromVolume4D overwrites any union data inside the CreateTrafficSurveilledAreaParameters_Extents as the provided Volume4D
-func (t *CreateTrafficSurveilledAreaParameters_Extents) FromVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeVolume4D performs a merge with any union data inside the CreateTrafficSurveilledAreaParameters_Extents, using the provided Volume4D
-func (t *CreateTrafficSurveilledAreaParameters_Extents) MergeVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t CreateTrafficSurveilledAreaParameters_Extents) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *CreateTrafficSurveilledAreaParameters_Extents) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsSubscription returns the union data inside the DeleteSubscriptionResponse_Subscription as a Subscription
-func (t DeleteSubscriptionResponse_Subscription) AsSubscription() (Subscription, error) {
-	var body Subscription
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromSubscription overwrites any union data inside the DeleteSubscriptionResponse_Subscription as the provided Subscription
-func (t *DeleteSubscriptionResponse_Subscription) FromSubscription(v Subscription) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeSubscription performs a merge with any union data inside the DeleteSubscriptionResponse_Subscription, using the provided Subscription
-func (t *DeleteSubscriptionResponse_Subscription) MergeSubscription(v Subscription) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t DeleteSubscriptionResponse_Subscription) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *DeleteSubscriptionResponse_Subscription) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTrafficSurveilledArea returns the union data inside the DeleteTrafficSurveilledAreaResponse_ServiceArea as a TrafficSurveilledArea
-func (t DeleteTrafficSurveilledAreaResponse_ServiceArea) AsTrafficSurveilledArea() (TrafficSurveilledArea, error) {
-	var body TrafficSurveilledArea
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTrafficSurveilledArea overwrites any union data inside the DeleteTrafficSurveilledAreaResponse_ServiceArea as the provided TrafficSurveilledArea
-func (t *DeleteTrafficSurveilledAreaResponse_ServiceArea) FromTrafficSurveilledArea(v TrafficSurveilledArea) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTrafficSurveilledArea performs a merge with any union data inside the DeleteTrafficSurveilledAreaResponse_ServiceArea, using the provided TrafficSurveilledArea
-func (t *DeleteTrafficSurveilledAreaResponse_ServiceArea) MergeTrafficSurveilledArea(v TrafficSurveilledArea) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t DeleteTrafficSurveilledAreaResponse_ServiceArea) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *DeleteTrafficSurveilledAreaResponse_ServiceArea) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsUUIDv4 returns the union data inside the EntityUUID as a UUIDv4
-func (t EntityUUID) AsUUIDv4() (UUIDv4, error) {
-	var body UUIDv4
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromUUIDv4 overwrites any union data inside the EntityUUID as the provided UUIDv4
-func (t *EntityUUID) FromUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeUUIDv4 performs a merge with any union data inside the EntityUUID, using the provided UUIDv4
-func (t *EntityUUID) MergeUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t EntityUUID) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *EntityUUID) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsUSSBaseURL returns the union data inside the FlightsUSSBaseURL as a USSBaseURL
-func (t FlightsUSSBaseURL) AsUSSBaseURL() (USSBaseURL, error) {
-	var body USSBaseURL
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromUSSBaseURL overwrites any union data inside the FlightsUSSBaseURL as the provided USSBaseURL
-func (t *FlightsUSSBaseURL) FromUSSBaseURL(v USSBaseURL) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeUSSBaseURL performs a merge with any union data inside the FlightsUSSBaseURL, using the provided USSBaseURL
-func (t *FlightsUSSBaseURL) MergeUSSBaseURL(v USSBaseURL) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t FlightsUSSBaseURL) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *FlightsUSSBaseURL) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsSubscription returns the union data inside the PutSubscriptionResponse_Subscription as a Subscription
-func (t PutSubscriptionResponse_Subscription) AsSubscription() (Subscription, error) {
-	var body Subscription
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromSubscription overwrites any union data inside the PutSubscriptionResponse_Subscription as the provided Subscription
-func (t *PutSubscriptionResponse_Subscription) FromSubscription(v Subscription) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeSubscription performs a merge with any union data inside the PutSubscriptionResponse_Subscription, using the provided Subscription
-func (t *PutSubscriptionResponse_Subscription) MergeSubscription(v Subscription) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t PutSubscriptionResponse_Subscription) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *PutSubscriptionResponse_Subscription) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTrafficSurveilledArea returns the union data inside the PutTrafficSurveilledAreaResponse_ServiceArea as a TrafficSurveilledArea
-func (t PutTrafficSurveilledAreaResponse_ServiceArea) AsTrafficSurveilledArea() (TrafficSurveilledArea, error) {
-	var body TrafficSurveilledArea
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTrafficSurveilledArea overwrites any union data inside the PutTrafficSurveilledAreaResponse_ServiceArea as the provided TrafficSurveilledArea
-func (t *PutTrafficSurveilledAreaResponse_ServiceArea) FromTrafficSurveilledArea(v TrafficSurveilledArea) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTrafficSurveilledArea performs a merge with any union data inside the PutTrafficSurveilledAreaResponse_ServiceArea, using the provided TrafficSurveilledArea
-func (t *PutTrafficSurveilledAreaResponse_ServiceArea) MergeTrafficSurveilledArea(v TrafficSurveilledArea) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t PutTrafficSurveilledAreaResponse_ServiceArea) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *PutTrafficSurveilledAreaResponse_ServiceArea) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsURL returns the union data inside the SubscriberToNotify_Url as a URL
-func (t SubscriberToNotify_Url) AsURL() (URL, error) {
-	var body URL
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromURL overwrites any union data inside the SubscriberToNotify_Url as the provided URL
-func (t *SubscriberToNotify_Url) FromURL(v URL) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeURL performs a merge with any union data inside the SubscriberToNotify_Url, using the provided URL
-func (t *SubscriberToNotify_Url) MergeURL(v URL) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t SubscriberToNotify_Url) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *SubscriberToNotify_Url) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsSubscriptionUUID returns the union data inside the Subscription_Id as a SubscriptionUUID
-func (t Subscription_Id) AsSubscriptionUUID() (SubscriptionUUID, error) {
-	var body SubscriptionUUID
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromSubscriptionUUID overwrites any union data inside the Subscription_Id as the provided SubscriptionUUID
-func (t *Subscription_Id) FromSubscriptionUUID(v SubscriptionUUID) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeSubscriptionUUID performs a merge with any union data inside the Subscription_Id, using the provided SubscriptionUUID
-func (t *Subscription_Id) MergeSubscriptionUUID(v SubscriptionUUID) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Subscription_Id) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Subscription_Id) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsSubscriptionNotificationIndex returns the union data inside the Subscription_NotificationIndex as a SubscriptionNotificationIndex
-func (t Subscription_NotificationIndex) AsSubscriptionNotificationIndex() (SubscriptionNotificationIndex, error) {
-	var body SubscriptionNotificationIndex
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromSubscriptionNotificationIndex overwrites any union data inside the Subscription_NotificationIndex as the provided SubscriptionNotificationIndex
-func (t *Subscription_NotificationIndex) FromSubscriptionNotificationIndex(v SubscriptionNotificationIndex) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeSubscriptionNotificationIndex performs a merge with any union data inside the Subscription_NotificationIndex, using the provided SubscriptionNotificationIndex
-func (t *Subscription_NotificationIndex) MergeSubscriptionNotificationIndex(v SubscriptionNotificationIndex) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Subscription_NotificationIndex) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Subscription_NotificationIndex) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the Subscription_TimeEnd as a Time
-func (t Subscription_TimeEnd) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the Subscription_TimeEnd as the provided Time
-func (t *Subscription_TimeEnd) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the Subscription_TimeEnd, using the provided Time
-func (t *Subscription_TimeEnd) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Subscription_TimeEnd) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Subscription_TimeEnd) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the Subscription_TimeStart as a Time
-func (t Subscription_TimeStart) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the Subscription_TimeStart as the provided Time
-func (t *Subscription_TimeStart) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the Subscription_TimeStart, using the provided Time
-func (t *Subscription_TimeStart) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Subscription_TimeStart) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Subscription_TimeStart) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsSubscriptionNotificationIndex returns the union data inside the SubscriptionState_NotificationIndex as a SubscriptionNotificationIndex
-func (t SubscriptionState_NotificationIndex) AsSubscriptionNotificationIndex() (SubscriptionNotificationIndex, error) {
-	var body SubscriptionNotificationIndex
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromSubscriptionNotificationIndex overwrites any union data inside the SubscriptionState_NotificationIndex as the provided SubscriptionNotificationIndex
-func (t *SubscriptionState_NotificationIndex) FromSubscriptionNotificationIndex(v SubscriptionNotificationIndex) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeSubscriptionNotificationIndex performs a merge with any union data inside the SubscriptionState_NotificationIndex, using the provided SubscriptionNotificationIndex
-func (t *SubscriptionState_NotificationIndex) MergeSubscriptionNotificationIndex(v SubscriptionNotificationIndex) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t SubscriptionState_NotificationIndex) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *SubscriptionState_NotificationIndex) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsUSSBaseURL returns the union data inside the SubscriptionUSSBaseURL as a USSBaseURL
-func (t SubscriptionUSSBaseURL) AsUSSBaseURL() (USSBaseURL, error) {
-	var body USSBaseURL
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromUSSBaseURL overwrites any union data inside the SubscriptionUSSBaseURL as the provided USSBaseURL
-func (t *SubscriptionUSSBaseURL) FromUSSBaseURL(v USSBaseURL) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeUSSBaseURL performs a merge with any union data inside the SubscriptionUSSBaseURL, using the provided USSBaseURL
-func (t *SubscriptionUSSBaseURL) MergeUSSBaseURL(v USSBaseURL) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t SubscriptionUSSBaseURL) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *SubscriptionUSSBaseURL) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsUUIDv4 returns the union data inside the SubscriptionUUID as a UUIDv4
-func (t SubscriptionUUID) AsUUIDv4() (UUIDv4, error) {
-	var body UUIDv4
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromUUIDv4 overwrites any union data inside the SubscriptionUUID as the provided UUIDv4
-func (t *SubscriptionUUID) FromUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeUUIDv4 performs a merge with any union data inside the SubscriptionUUID, using the provided UUIDv4
-func (t *SubscriptionUUID) MergeUUIDv4(v UUIDv4) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t SubscriptionUUID) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *SubscriptionUUID) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsEntityUUID returns the union data inside the TrafficSurveilledArea_Id as a EntityUUID
-func (t TrafficSurveilledArea_Id) AsEntityUUID() (EntityUUID, error) {
-	var body EntityUUID
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromEntityUUID overwrites any union data inside the TrafficSurveilledArea_Id as the provided EntityUUID
-func (t *TrafficSurveilledArea_Id) FromEntityUUID(v EntityUUID) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeEntityUUID performs a merge with any union data inside the TrafficSurveilledArea_Id, using the provided EntityUUID
-func (t *TrafficSurveilledArea_Id) MergeEntityUUID(v EntityUUID) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t TrafficSurveilledArea_Id) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *TrafficSurveilledArea_Id) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the TrafficSurveilledArea_TimeEnd as a Time
-func (t TrafficSurveilledArea_TimeEnd) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the TrafficSurveilledArea_TimeEnd as the provided Time
-func (t *TrafficSurveilledArea_TimeEnd) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the TrafficSurveilledArea_TimeEnd, using the provided Time
-func (t *TrafficSurveilledArea_TimeEnd) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t TrafficSurveilledArea_TimeEnd) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *TrafficSurveilledArea_TimeEnd) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the TrafficSurveilledArea_TimeStart as a Time
-func (t TrafficSurveilledArea_TimeStart) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the TrafficSurveilledArea_TimeStart as the provided Time
-func (t *TrafficSurveilledArea_TimeStart) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the TrafficSurveilledArea_TimeStart, using the provided Time
-func (t *TrafficSurveilledArea_TimeStart) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t TrafficSurveilledArea_TimeStart) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *TrafficSurveilledArea_TimeStart) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsVolume4D returns the union data inside the UpdateSubscriptionParameters_Extents as a Volume4D
-func (t UpdateSubscriptionParameters_Extents) AsVolume4D() (Volume4D, error) {
-	var body Volume4D
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromVolume4D overwrites any union data inside the UpdateSubscriptionParameters_Extents as the provided Volume4D
-func (t *UpdateSubscriptionParameters_Extents) FromVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeVolume4D performs a merge with any union data inside the UpdateSubscriptionParameters_Extents, using the provided Volume4D
-func (t *UpdateSubscriptionParameters_Extents) MergeVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t UpdateSubscriptionParameters_Extents) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *UpdateSubscriptionParameters_Extents) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsVolume4D returns the union data inside the UpdateTrafficSurveilledAreaParameters_Extents as a Volume4D
-func (t UpdateTrafficSurveilledAreaParameters_Extents) AsVolume4D() (Volume4D, error) {
-	var body Volume4D
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromVolume4D overwrites any union data inside the UpdateTrafficSurveilledAreaParameters_Extents as the provided Volume4D
-func (t *UpdateTrafficSurveilledAreaParameters_Extents) FromVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeVolume4D performs a merge with any union data inside the UpdateTrafficSurveilledAreaParameters_Extents, using the provided Volume4D
-func (t *UpdateTrafficSurveilledAreaParameters_Extents) MergeVolume4D(v Volume4D) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t UpdateTrafficSurveilledAreaParameters_Extents) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *UpdateTrafficSurveilledAreaParameters_Extents) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsAltitude returns the union data inside the Volume3D_AltitudeLower as a Altitude
-func (t Volume3D_AltitudeLower) AsAltitude() (Altitude, error) {
-	var body Altitude
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAltitude overwrites any union data inside the Volume3D_AltitudeLower as the provided Altitude
-func (t *Volume3D_AltitudeLower) FromAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAltitude performs a merge with any union data inside the Volume3D_AltitudeLower, using the provided Altitude
-func (t *Volume3D_AltitudeLower) MergeAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_AltitudeLower) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_AltitudeLower) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsAltitude returns the union data inside the Volume3D_AltitudeUpper as a Altitude
-func (t Volume3D_AltitudeUpper) AsAltitude() (Altitude, error) {
-	var body Altitude
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAltitude overwrites any union data inside the Volume3D_AltitudeUpper as the provided Altitude
-func (t *Volume3D_AltitudeUpper) FromAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAltitude performs a merge with any union data inside the Volume3D_AltitudeUpper, using the provided Altitude
-func (t *Volume3D_AltitudeUpper) MergeAltitude(v Altitude) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_AltitudeUpper) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_AltitudeUpper) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsCircle returns the union data inside the Volume3D_OutlineCircle as a Circle
-func (t Volume3D_OutlineCircle) AsCircle() (Circle, error) {
-	var body Circle
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromCircle overwrites any union data inside the Volume3D_OutlineCircle as the provided Circle
-func (t *Volume3D_OutlineCircle) FromCircle(v Circle) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeCircle performs a merge with any union data inside the Volume3D_OutlineCircle, using the provided Circle
-func (t *Volume3D_OutlineCircle) MergeCircle(v Circle) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_OutlineCircle) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_OutlineCircle) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsPolygon returns the union data inside the Volume3D_OutlinePolygon as a Polygon
-func (t Volume3D_OutlinePolygon) AsPolygon() (Polygon, error) {
-	var body Polygon
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromPolygon overwrites any union data inside the Volume3D_OutlinePolygon as the provided Polygon
-func (t *Volume3D_OutlinePolygon) FromPolygon(v Polygon) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergePolygon performs a merge with any union data inside the Volume3D_OutlinePolygon, using the provided Polygon
-func (t *Volume3D_OutlinePolygon) MergePolygon(v Polygon) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume3D_OutlinePolygon) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume3D_OutlinePolygon) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the Volume4D_TimeEnd as a Time
-func (t Volume4D_TimeEnd) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the Volume4D_TimeEnd as the provided Time
-func (t *Volume4D_TimeEnd) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the Volume4D_TimeEnd, using the provided Time
-func (t *Volume4D_TimeEnd) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume4D_TimeEnd) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume4D_TimeEnd) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
-
-// AsTime returns the union data inside the Volume4D_TimeStart as a Time
-func (t Volume4D_TimeStart) AsTime() (Time, error) {
-	var body Time
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromTime overwrites any union data inside the Volume4D_TimeStart as the provided Time
-func (t *Volume4D_TimeStart) FromTime(v Time) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeTime performs a merge with any union data inside the Volume4D_TimeStart, using the provided Time
-func (t *Volume4D_TimeStart) MergeTime(v Time) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t Volume4D_TimeStart) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *Volume4D_TimeStart) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}

@@ -29,3 +29,5 @@ then run it with the rights flags
   -view string
         lat1,lng1,lat2,lng2 each as float
 ```
+
+./cis-example

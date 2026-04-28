@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	surveillance_dss_v1 "github.com/skyguide-ansp/cis-examples/api/surveillance/v0/dss"
-	surveillance_uss_v1 "github.com/skyguide-ansp/cis-examples/api/surveillance/v0/uss"
+	surveillance_dss_v0 "github.com/skyguide-ansp/cis-examples/api/surveillance/v0/dss"
+	surveillance_uss_v0 "github.com/skyguide-ansp/cis-examples/api/surveillance/v0/uss"
 	httpUtil "github.com/skyguide-ansp/cis-examples/http"
 )
 
 type SurveillanceClientV0 struct {
 	DssConfig *httpUtil.Authorizer
 	UssConfig *httpUtil.Authorizer
-	dss       surveillance_dss_v1.ClientInterface
-	uss       surveillance_uss_v1.ClientInterface
+	dss       surveillance_dss_v0.ClientInterface
+	uss       surveillance_uss_v0.ClientInterface
 }
 
 type Provider struct {
@@ -28,7 +28,7 @@ type Provider struct {
 
 type TrafficDataAndProvider struct {
 	Provider string
-	Data     surveillance_uss_v1.Flight
+	Data     *surveillance_uss_v0.Flight
 }
 
 // pass configuration to create a new client for display provider
@@ -45,17 +45,17 @@ func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credent
 	}
 
 	// use generated openApi client but reuse the same token
-	dssOpenApiClient, err := surveillance_dss_v1.NewClientWithResponses(
+	dssOpenApiClient, err := surveillance_dss_v0.NewClientWithResponses(
 		dssBaseUrl+"/"+strings.TrimPrefix(dssBasePath, "/"),
-		surveillance_dss_v1.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+		surveillance_dss_v0.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			_, tokenErr := dssAuthorizer.SetAuthorizationHeader(ctx, req)
 			return tokenErr
 		}),
 	)
 
-	ussOpenApiClient, err := surveillance_uss_v1.NewClientWithResponses(
+	ussOpenApiClient, err := surveillance_uss_v0.NewClientWithResponses(
 		ussBaseUrl+"/"+strings.TrimPrefix(ussBasePath, "/"),
-		surveillance_uss_v1.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+		surveillance_uss_v0.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			_, tokenErr := ussAuthorizer.SetAuthorizationHeader(ctx, req)
 			return tokenErr
 		}),
@@ -79,7 +79,7 @@ func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credent
 // Then call each of them to retrieve the original data stream
 func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Context, view string) (chan *TrafficDataAndProvider, error) {
 	// get the list of uss from the DSS client
-	surveilledAreas, err := client.listTrafficSurveilledArea(ctx, &surveillance_dss_v1.SearchTrafficSurveilledAreasParams{
+	surveilledAreas, err := client.listTrafficSurveilledArea(ctx, &surveillance_dss_v0.SearchTrafficSurveilledAreasParams{
 		Area:         view,
 		LatestTime:   time.Now().Add(time.Hour),
 		EarliestTime: time.Now().Add(time.Duration(-1) * time.Hour),
@@ -94,6 +94,10 @@ func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Contex
 		return nil, errors.New("no provider found")
 	}
 
+	return client.StreamFlightInAreas(ctx, surveilledAreas, view)
+}
+
+func (client *SurveillanceClientV0) StreamFlightInAreas(ctx context.Context, surveilledAreas *surveillance_dss_v0.SearchTrafficSurveilledAreasResponse, view string) (chan *TrafficDataAndProvider, error) {
 	// prepare a chanel for the stream of flights
 	flightEventStream := make(chan *TrafficDataAndProvider, 100)
 
@@ -112,13 +116,13 @@ func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Contex
 
 // Call DSS to get all the Providers Area concerned by the view
 // performs GET /uss/traffic_surveilled_areas
-func (client *SurveillanceClientV0) listTrafficSurveilledArea(ctx context.Context, param *surveillance_dss_v1.SearchTrafficSurveilledAreasParams) (*surveillance_dss_v1.SearchTrafficSurveilledAreasResponse, error) {
+func (client *SurveillanceClientV0) listTrafficSurveilledArea(ctx context.Context, param *surveillance_dss_v0.SearchTrafficSurveilledAreasParams) (*surveillance_dss_v0.SearchTrafficSurveilledAreasResponse, error) {
 	resp, err := client.dss.SearchTrafficSurveilledAreas(ctx, param)
 	if err != nil {
 		return nil, err
 	}
 
-	decoded, err := httpUtil.DecodeHttpRequest[surveillance_dss_v1.SearchTrafficSurveilledAreasHttpResponse](resp)
+	decoded, err := httpUtil.DecodeHttpRequest[surveillance_dss_v0.SearchTrafficSurveilledAreasHttpResponse](resp)
 	if err != nil {
 		return nil, err
 	}
@@ -127,11 +131,11 @@ func (client *SurveillanceClientV0) listTrafficSurveilledArea(ctx context.Contex
 
 // Call the USS to listen the traffic and stream it into a channel
 // For each Traffic Surveilled Area -> call GET /uss/flights/stream
-func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context, area *surveillance_dss_v1.TrafficSurveilledArea, output chan *TrafficDataAndProvider, view string) error {
+func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context, area *surveillance_dss_v0.TrafficSurveilledArea, output chan *TrafficDataAndProvider, view string) error {
 
 	provider := area.Owner
 
-	resp, err := client.uss.StreamFlights(ctx, &surveillance_uss_v1.StreamFlightsParams{
+	resp, err := client.uss.StreamFlights(ctx, &surveillance_uss_v0.StreamFlightsParams{
 		View: view,
 	})
 	if err != nil {
@@ -151,14 +155,14 @@ func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context,
 				continue
 			}
 
-			event, readErr := httpUtil.ParseEventFromSSE[surveillance_uss_v1.FlightEvent](lines)
+			event, readErr := httpUtil.ParseEventFromSSE[surveillance_uss_v0.Flight](lines)
 			if readErr != nil {
 				continue
 			}
 
 			output <- &TrafficDataAndProvider{
 				Provider: provider,
-				Data:     event.Data,
+				Data:     event,
 			}
 		}
 
