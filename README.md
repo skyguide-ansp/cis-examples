@@ -1,12 +1,19 @@
-uses: 
+## uses case 1: 
 
-go build -o cis-examples .
+### description
+
+in this example, we call the traffic_surveilled_area from the dss, gather the uss url
+then query each of them to retrieve the stream of data, and print it during 15s.
+
+### usage:
+
+go build -o example1 ./cmd/example-1-simple-consumer
 
 then run it with the rights flags
 ```
- -client-id string
+ -oidc-client-id string
         client id
-  -client-secret string
+  -oidc-client-secret string
         client secret
   -dss-audiences string
         dss audience to pass to oidc
@@ -16,10 +23,8 @@ then run it with the rights flags
         dss scopes to pass to oidc
   -dss-url string
         base url of the dss
-  -oidc-url string
+  -oidc-token-url string
         url of the authentication server, token endpoint exected
-  -uss-audiences string
-        uss audience to pass to oidc
   -uss-scopes string
         uss scopes to pass to oidc
   -view string

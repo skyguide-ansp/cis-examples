@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -15,10 +16,9 @@ import (
 )
 
 type SurveillanceClientV0 struct {
-	DssConfig *httpUtil.Authorizer
-	UssConfig *httpUtil.Authorizer
-	dss       surveillance_dss_v0.ClientInterface
-	uss       surveillance_uss_v0.ClientInterface
+	DssAuthorizer *httpUtil.Authorizer
+	UssConfig     *httpUtil.Credential
+	dss           surveillance_dss_v0.ClientInterface
 }
 
 type Provider struct {
@@ -39,11 +39,6 @@ func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credent
 		Token:      nil,
 	}
 
-	ussAuthorizer := &httpUtil.Authorizer{
-		Credential: ussCredential,
-		Token:      nil,
-	}
-
 	// use generated openApi client but reuse the same token
 	dssOpenApiClient, err := surveillance_dss_v0.NewClientWithResponses(
 		dssBaseUrl+"/"+strings.TrimPrefix(dssBasePath, "/"),
@@ -58,9 +53,9 @@ func NewClient(dssCredential httpUtil.Credential, ussCredential httpUtil.Credent
 	}
 
 	return &SurveillanceClientV0{
-		DssConfig: dssAuthorizer,
-		UssConfig: ussAuthorizer,
-		dss:       dssOpenApiClient,
+		DssAuthorizer: dssAuthorizer,
+		UssConfig:     &ussCredential,
+		dss:           dssOpenApiClient,
 	}, nil
 }
 
@@ -113,7 +108,7 @@ func (client *SurveillanceClientV0) listTrafficSurveilledArea(ctx context.Contex
 		return nil, err
 	}
 
-	decoded, err := httpUtil.DecodeHttpRequest[surveillance_dss_v0.SearchTrafficSurveilledAreasHttpResponse](resp)
+	decoded, err := httpUtil.DecodeJsonHttpRequest[surveillance_dss_v0.SearchTrafficSurveilledAreasHttpResponse](resp)
 	if err != nil {
 		return nil, err
 	}
@@ -126,14 +121,13 @@ func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context,
 
 	provider := area.Owner
 
-	ussOpenApiClient, err := surveillance_uss_v0.NewClientWithResponses(
-		area.UssBaseUrl,
-		surveillance_uss_v0.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-			_, tokenErr := client.UssConfig.SetAuthorizationHeader(ctx, req)
-			return tokenErr
-		}),
-	)
+	// create http client with oidc token injection
+	ussOpenApiClient, err := client.createUssClient(area)
+	if err != nil {
+		return err
+	}
 
+	// retrive uss stream via GET /uss/flights/stream
 	resp, err := ussOpenApiClient.StreamFlights(ctx, &surveillance_uss_v0.StreamFlightsParams{
 		View: view,
 	})
@@ -141,8 +135,8 @@ func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context,
 		return err
 	}
 
+	//read and decode SSE
 	reader := bufio.NewReader(resp.Body)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -167,4 +161,32 @@ func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context,
 
 	}
 
+}
+
+func (client *SurveillanceClientV0) createUssClient(area *surveillance_dss_v0.TrafficSurveilledArea) (*surveillance_uss_v0.ClientWithResponses, error) {
+	ussUrl, err := url.Parse(area.UssBaseUrl)
+	if err != nil {
+		return nil, errors.New("invalid area url")
+	}
+
+	// create token injector base on the initial configuration, override audience
+	ussAuthorizer := &httpUtil.Authorizer{
+		Credential: httpUtil.Credential{
+			Scopes:       client.UssConfig.Scopes,
+			Audiences:    []string{ussUrl.Host},
+			TokenURL:     client.UssConfig.TokenURL,
+			ClientSecret: client.UssConfig.ClientSecret,
+			ClientID:     client.UssConfig.ClientID,
+		},
+		Token: nil,
+	}
+
+	// create client and inject token on request
+	return surveillance_uss_v0.NewClientWithResponses(
+		area.UssBaseUrl,
+		surveillance_uss_v0.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			_, tokenErr := ussAuthorizer.SetAuthorizationHeader(ctx, req)
+			return tokenErr
+		}),
+	)
 }

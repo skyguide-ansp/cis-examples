@@ -22,7 +22,7 @@ func (client *Authorizer) SetAuthorizationHeader(ctx context.Context, req *http.
 	defer client.Lock.Unlock()
 
 	if IsTokenExpired(client.Token) {
-		token, refreshErr := AuthenticateToDSSWithClientCredentials(ctx, client.Credential)
+		token, refreshErr := AuthenticateWithClientCredentials(ctx, client.Credential)
 		if refreshErr != nil {
 			return nil, refreshErr
 		}
@@ -32,8 +32,8 @@ func (client *Authorizer) SetAuthorizationHeader(ctx context.Context, req *http.
 	return req, nil
 }
 
-// control error code, and decode response as type T
-func DecodeHttpRequest[T any](resp *http.Response) (*T, error) {
+// control error code, and decode response as type T if the application/json header is present
+func DecodeJsonHttpRequest[T any](resp *http.Response) (*T, error) {
 	if resp == nil {
 		return nil, nil
 	}

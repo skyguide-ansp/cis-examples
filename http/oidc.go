@@ -31,8 +31,8 @@ type Token struct {
 	RequestTime      time.Time
 }
 
-// AuthenticateToDSSWithClientCredentials create auth request as client_credentials with scope and audience and run it
-func AuthenticateToDSSWithClientCredentials(ctx context.Context, credential Credential) (*Token, error) {
+// AuthenticateWithClientCredentials create auth request as client_credentials with scope and audience and run it
+func AuthenticateWithClientCredentials(ctx context.Context, credential Credential) (*Token, error) {
 	values := url.Values{}
 	values.Add("client_id", credential.ClientID)
 	values.Add("client_secret", credential.ClientSecret)
@@ -56,7 +56,7 @@ func AuthenticateToDSSWithClientCredentials(ctx context.Context, credential Cred
 	}
 
 	// decode token and set the request time
-	token, err := DecodeHttpRequest[Token](resp)
+	token, err := DecodeJsonHttpRequest[Token](resp)
 	if err != nil {
 		return nil, err
 	}
@@ -77,23 +77,4 @@ func IsTokenExpired(token *Token) bool {
 		Add(time.Duration(token.ExpiresIn) * time.Second).
 		Add(time.Duration(-2) * time.Minute).
 		After(time.Now())
-}
-
-func StringToList(s string) []string {
-	if s == "" {
-		return nil
-	}
-
-	var parts []string
-	if strings.Contains(s, ",") {
-		parts = strings.Split(s, ",")
-	} else {
-		parts = strings.Fields(s)
-	}
-
-	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
-	}
-
-	return parts
 }

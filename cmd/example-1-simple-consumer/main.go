@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"time"
 
 	provider "github.com/skyguide-ansp/cis-examples/display/surveillance/v0"
@@ -16,31 +17,33 @@ import (
 // starts a client that is in charge to retrieve the data
 func main() {
 	// flags
-	dssUrl := flag.String("dss-url", "", "base url of the dss")
+	dssUrl := flag.String("dss-url", "", "base url of the dss, expect protocol to be part of it")
 	dssBasePath := flag.String("dss-base-path", "/surveillance/v0", "base path for the dss")
-	oidcTokenUrl := flag.String("oidc-url", "", "url of the authentication server, token endpoint exected")
-	oidcClientId := flag.String("client-id", "", "oidc client id")
-	oidcClientSecret := flag.String("client-secret", "", "oidc client secret")
-	oidcDssScopes := flag.String("dss-scopes", "surveillance.display_provider", "dss scopes to pass to oidc")
-	oidcUssScopes := flag.String("uss-scopes", "surveillance.display_provider", "uss scopes to pass to oidc")
-	oidcDssAudiences := flag.String("dss-audiences", "", "dss audience to pass to oidc")
-	oidcUssAudiences := flag.String("uss-audiences", "", "uss audience to pass to oidc")
+	oidcTokenUrl := flag.String("oidc-token-url", "", "url of the authentication server, token endpoint expected, protocol expected")
+	oidcClientId := flag.String("oidc-client-id", "", "oidc client id")
+	oidcClientSecret := flag.String("oidc-client-secret", "", "oidc client secret")
+	oidcDssScopes := flag.String("dss-scopes", "surveillance.display_provider", "dss scopes to pass to oidc, default to surveillance.display_provider, optional")
+	oidcUssScopes := flag.String("uss-scopes", "surveillance.display_provider", "uss scopes to pass to oidc, default to surveillance.display_provider, optional")
 	view := flag.String("view", "", "lat1,lng1,lat2,lng2 each as float")
 
 	flag.Parse()
 
+	dssHost, err := url.Parse(*dssUrl)
+	if err != nil {
+		panic("unparsable dss url")
+	}
+
 	// retrieve oidc credential
 	DssCredentials := httpUtil.Credential{
-		Scopes:       httpUtil.StringToList(*oidcDssScopes),
-		Audiences:    httpUtil.StringToList(*oidcDssAudiences),
+		Scopes:       util.StringToList(*oidcDssScopes),
+		Audiences:    []string{dssHost.Host},
 		ClientID:     *oidcClientId,
 		ClientSecret: *oidcClientSecret,
 		TokenURL:     *oidcTokenUrl,
 	}
 
 	UssCredentials := httpUtil.Credential{
-		Scopes:       httpUtil.StringToList(*oidcUssScopes),
-		Audiences:    httpUtil.StringToList(*oidcUssAudiences),
+		Scopes:       util.StringToList(*oidcUssScopes),
 		ClientID:     *oidcClientId,
 		ClientSecret: *oidcClientSecret,
 		TokenURL:     *oidcTokenUrl,
@@ -58,7 +61,7 @@ func main() {
 	}
 
 	// get providers
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if !util.ValidateView(*view) {
