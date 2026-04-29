@@ -129,7 +129,8 @@ func (client *SurveillanceClientV0) listenTrafficFromSource(ctx context.Context,
 		return err
 	}
 
-	// retrive uss stream via GET /uss/flights/stream
+	// retrieve uss stream via GET /uss/flights/stream
+	// DO not use StreamFLightsWithResponse
 	resp, err := ussOpenApiClient.StreamFlights(ctx, &surveillance_uss_v0.StreamFlightsParams{
 		View: view,
 	})

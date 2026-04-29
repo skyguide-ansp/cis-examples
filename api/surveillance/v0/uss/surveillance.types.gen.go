@@ -202,6 +202,28 @@ type Circle struct {
 	Radius *Radius      `json:"radius,omitempty"`
 }
 
+// CreateSubscriptionParameters Parameters for a request to create a subscription in the DSS.
+type CreateSubscriptionParameters struct {
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
+
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
+	UssBaseUrl SubscriptionUSSBaseURL `json:"uss_base_url"`
+}
+
+// CreateTrafficSurveilledAreaParameters Parameters for a request to create an Traffic Surveilled Area in the DSS.
+type CreateTrafficSurveilledAreaParameters struct {
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
+
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
+	UssBaseUrl FlightsUSSBaseURL `json:"uss_base_url"`
+}
+
 // DataSource defines model for DataSource.
 type DataSource struct {
 	// Data Raw data
@@ -212,6 +234,21 @@ type DataSource struct {
 
 	// Id Data source identifier
 	Id string `json:"id"`
+}
+
+// DeleteSubscriptionResponse Response for a successful request to delete an Subscription.
+type DeleteSubscriptionResponse struct {
+	// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
+	Subscription Subscription `json:"subscription"`
+}
+
+// DeleteTrafficSurveilledAreaResponse Response for a request to delete an Traffic Surveilled Area.
+type DeleteTrafficSurveilledAreaResponse struct {
+	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	ServiceArea TrafficSurveilledArea `json:"service_area"`
+
+	// Subscribers DSS subscribers that this client now has the obligation to notify of the Traffic Surveilled Area just deleted.  This client must call POST for each provided URL according to the `/uss/traffic_surveilled_areas` path API.
+	Subscribers *[]SubscriberToNotify `json:"subscribers,omitempty"`
 }
 
 // EntityUUID UUID v4.
@@ -232,16 +269,36 @@ type Flight struct {
 	Source       DataSource    `json:"source"`
 }
 
-// FlightEvent defines model for FlightEvent.
-type FlightEvent struct {
-	// Data Description of flight.
-	Data Flight `json:"data"`
+// FlightsUSSBaseURL The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+// Accordingly, this URL may not have a trailing '/' character.
+type FlightsUSSBaseURL = USSBaseURL
+
+// GeoPolygonString Plain-string representation of a geographic polygon consisting of at least three geographic
+// points describing a closed polygon on the earth.  Each point consists of latitude,longitude
+// in degrees.  Points are also comma-delimited, so this parameter will look like
+// `lat1,lng1,lat2,lng2,lat3,lng3,...`  Latitude values must fall in the range [-90, 90] and
+// longitude values must fall in the range [-180, 180].
+//
+// All of the requirements and clarifications for Polygon apply to GeoPolygonString as well.
+type GeoPolygonString = string
+
+// GetSubscriptionResponse Response to DSS request for the subscription with the given id.
+type GetSubscriptionResponse struct {
+	// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
+	Subscription Subscription `json:"subscription"`
 }
 
 // GetTrafficSurveilledAreaDetailsResponse Response to request for the details of an surveilled area with the given ID.
 type GetTrafficSurveilledAreaDetailsResponse struct {
 	// Extents Contiguous block of geographic spacetime.
 	Extents Volume4D `json:"extents"`
+}
+
+// GetTrafficSurveilledAreaResponse Response to DSS request for the surveilled area with the given ID.
+type GetTrafficSurveilledAreaResponse struct {
+	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	ServiceArea TrafficSurveilledArea `json:"service_area"`
 }
 
 // LatLngPoint Point on the earth's surface.
@@ -264,6 +321,36 @@ type Polygon struct {
 	Vertices []LatLngPoint `json:"vertices"`
 }
 
+// PutSubscriptionResponse Response for a request to create or update a subscription.
+type PutSubscriptionResponse struct {
+	// ServiceAreas Traffic Surveilled Areas in or near the subscription area at the time of creation/update, if `traffic_surveilled_area_url` callback was specified.
+	ServiceAreas *[]TrafficSurveilledArea `json:"service_areas,omitempty"`
+
+	// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
+	Subscription Subscription `json:"subscription"`
+}
+
+// PutTrafficSurveilledAreaNotificationParameters Parameters of a message informing of new full information for an Traffic Surveilled Area.  Pushed (by a client, not the DSS) directly to clients with subscriptions when another client makes a change to airspace within a cell with a subscription.
+type PutTrafficSurveilledAreaNotificationParameters struct {
+	// Extents Contiguous block of geographic spacetime.
+	Extents *Volume4D `json:"extents,omitempty"`
+
+	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	ServiceArea *TrafficSurveilledArea `json:"service_area,omitempty"`
+
+	// Subscriptions Subscription(s) prompting this notification.
+	Subscriptions []SubscriptionState `json:"subscriptions"`
+}
+
+// PutTrafficSurveilledAreaResponse Response to a request to create or update a reference to an Traffic Surveilled Area in the DSS.
+type PutTrafficSurveilledAreaResponse struct {
+	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	ServiceArea TrafficSurveilledArea `json:"service_area"`
+
+	// Subscribers DSS subscribers that this client now has the obligation to notify of the Traffic Surveilled Area changes just made.  This client must call POST for each provided URL according to the `/uss/traffic_surveilled_areas/{id}` path API.
+	Subscribers *[]SubscriberToNotify `json:"subscribers,omitempty"`
+}
+
 // Radius defines model for Radius.
 type Radius struct {
 	// Units FIXM-compatible units.  Only meters ("M") are acceptable for UTM.
@@ -275,6 +362,66 @@ type Radius struct {
 
 // RadiusUnits FIXM-compatible units.  Only meters ("M") are acceptable for UTM.
 type RadiusUnits string
+
+// SearchSubscriptionsResponse Response to DSS query for subscriptions in a particular area.
+type SearchSubscriptionsResponse struct {
+	// Subscriptions Subscriptions that overlap the specified area.
+	Subscriptions *[]Subscription `json:"subscriptions,omitempty"`
+}
+
+// SearchTrafficSurveilledAreasResponse Response to DSS query for Traffic Surveilled Areas in an area of interest.
+type SearchTrafficSurveilledAreasResponse struct {
+	// ServiceAreas Traffic Surveilled Areas in the area of interest.
+	ServiceAreas *[]TrafficSurveilledArea `json:"service_areas,omitempty"`
+}
+
+// SubscriberToNotify Subscriber to notify of a creation/change/deletion of a change in the airspace.  This is provided by the DSS to a client changing the airspace, and it is the responsibility of the client changing the airspace (they will receive a set of these notification requests) to send a notification to each specified `url`.
+type SubscriberToNotify struct {
+	// Subscriptions Subscription(s) prompting this notification.
+	Subscriptions []SubscriptionState `json:"subscriptions"`
+
+	// Url Valid http or https URL.
+	Url URL `json:"url"`
+}
+
+// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
+type Subscription struct {
+	// Id UUID v4.
+	Id SubscriptionUUID `json:"id"`
+
+	// NotificationIndex Tracks the notifications sent for a subscription so the subscriber can detect missed notifications more easily.
+	NotificationIndex *SubscriptionNotificationIndex `json:"notification_index,omitempty"`
+
+	// Owner Assigned by the DSS based on creating client's ID (via access token).  Used for restricting mutation and deletion operations to owner.
+	Owner     string `json:"owner"`
+	TimeEnd   *Time  `json:"time_end,omitempty"`
+	TimeStart *Time  `json:"time_start,omitempty"`
+
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
+	UssBaseUrl SubscriptionUSSBaseURL `json:"uss_base_url"`
+
+	// Version A version string used to reference an object at a particular point in time. Any updates to an object must contain the corresponding version to maintain idempotent updates.
+	Version Version `json:"version"`
+}
+
+// SubscriptionNotificationIndex Tracks the notifications sent for a subscription so the subscriber can detect missed notifications more easily.
+type SubscriptionNotificationIndex = int32
+
+// SubscriptionState State of Subscription which is causing a notification to be sent.
+type SubscriptionState struct {
+	// NotificationIndex Tracks the notifications sent for a subscription so the subscriber can detect missed notifications more easily.
+	NotificationIndex *SubscriptionNotificationIndex `json:"notification_index,omitempty"`
+
+	// SubscriptionId UUID v4.
+	SubscriptionId SubscriptionUUID `json:"subscription_id"`
+}
+
+// SubscriptionUSSBaseURL The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+// Accordingly, this URL may not have a trailing '/' character.
+type SubscriptionUSSBaseURL = USSBaseURL
 
 // SubscriptionUUID UUID v4.
 type SubscriptionUUID = UUIDv4
@@ -290,8 +437,60 @@ type Time struct {
 // TimeFormat defines model for Time.Format.
 type TimeFormat string
 
+// TrafficSurveilledArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+type TrafficSurveilledArea struct {
+	// Id UUID v4.
+	Id EntityUUID `json:"id"`
+
+	// Owner Assigned by the DSS based on creating client's ID (via access token).  Used for restricting mutation and deletion operations to owner.
+	Owner     string `json:"owner"`
+	TimeEnd   Time   `json:"time_end"`
+	TimeStart Time   `json:"time_start"`
+
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
+	UssBaseUrl FlightsUSSBaseURL `json:"uss_base_url"`
+
+	// Version A version string used to reference an object at a particular point in time. Any updates to an object must contain the corresponding version to maintain idempotent updates.
+	Version Version `json:"version"`
+}
+
+// URL Valid http or https URL.
+type URL = string
+
+// USSBaseURL The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+// Accordingly, this URL may not have a trailing '/' character.
+type USSBaseURL = string
+
 // UUIDv4 UUID v4.
 type UUIDv4 = string
+
+// UpdateSubscriptionParameters Parameters for a request to update a subscription in the DSS.
+type UpdateSubscriptionParameters struct {
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
+
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
+	UssBaseUrl SubscriptionUSSBaseURL `json:"uss_base_url"`
+}
+
+// UpdateTrafficSurveilledAreaParameters Parameters for a request to update an Traffic Surveilled Area in the DSS.
+type UpdateTrafficSurveilledAreaParameters struct {
+	// Extents Contiguous block of geographic spacetime.
+	Extents Volume4D `json:"extents"`
+
+	// UssBaseUrl The base URL of a USS implementation of part or all of the surveillance USS-USS API. Per the USS-USS API, the full URL
+	// of a particular resource can be constructed by appending, e.g., `/uss/{resource}/{id}` to this base URL.
+	// Accordingly, this URL may not have a trailing '/' character.
+	UssBaseUrl FlightsUSSBaseURL `json:"uss_base_url"`
+}
+
+// Version A version string used to reference an object at a particular point in time. Any updates to an object must contain the corresponding version to maintain idempotent updates.
+type Version = string
 
 // View The area of this view: lat1,lng1,lat2,lng2. The view is the smallest box bounded by the provided corner points.
 type View = string
