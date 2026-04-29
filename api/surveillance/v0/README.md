@@ -11,3 +11,5 @@ Uss part:
 cd $ROOT/api/surveillance/v0/uss
 go tool oapi-codegen -o surveillance.client.uss.gen.go -package surveillance_uss_v0 -generate client -response-type-suffix HttpResponse -include-tags sp ../surveillance.yaml
 go tool oapi-codegen -o surveillance.types.gen.go -package surveillance_uss_v0 -generate types,skip-prune  -include-tags sp ../surveillance.yaml
+
+Surveillance.yaml is a simplified oapi-codegen friendly version of: https://github.com/skyguide-ansp/cis-interfaces

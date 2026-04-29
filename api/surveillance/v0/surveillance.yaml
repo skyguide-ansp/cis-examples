@@ -195,8 +195,6 @@ paths:
       summary: /dss/traffic_surveilled_areas/{id}
       description: |-
         Create a new Traffic Surveilled Area.  This call will fail if an Traffic Surveilled Area with the same ID already exists.
-
-        The DSS assumes the USS has already added the appropriate retention period to operation end time in `time_end` field before storing it.
     parameters:
       - name: id
         description: EntityUUID of the Traffic Surveilled Area.
@@ -266,8 +264,7 @@ paths:
       summary: /dss/traffic_surveilled_areas/{id}/{version}
       description: |-
         Update an Traffic Surveilled Area.  The full content of the existing Traffic Surveilled Area will be replaced with the provided information as only the most recent version is retained.
-
-        The DSS assumes the USS has already added the appropriate retention period to operation end time in `time_end` field before storing it.  Updating `time_start` is not allowed if it is before the current time.
+        Updating `time_start` is not allowed if it is before the current time.
     delete:
       tags:
         - dss
@@ -318,9 +315,7 @@ paths:
         - Authority:
             - surveillance.service_provider
       summary: /dss/traffic_surveilled_areas/{id}/{version}
-      description: Delete an Traffic Surveilled Area.  USSs should not delete
-        Traffic Surveilled Areas before the end of the last managed flight
-        plus the retention period.
+      description: Delete an Traffic Surveilled Area.
     parameters:
       - name: id
         description: EntityUUID of the Traffic Surveilled Area.
@@ -1257,7 +1252,7 @@ components:
       description: Response to a request to create or update a reference to an
         Traffic Surveilled Area in the DSS.
       required:
-        - service_area
+        - surveilled_area
       type: object
       properties:
         subscribers:
@@ -1269,7 +1264,7 @@ components:
           items:
             $ref: "#/components/schemas/SubscriberToNotify"
           default: []
-        service_area:
+        surveilled_area:
             $ref: "#/components/schemas/TrafficSurveilledArea"
             description: Resulting surveilled area stored in DSS.
     SearchTrafficSurveilledAreasResponse:
@@ -1277,7 +1272,7 @@ components:
         of interest.
       type: object
       properties:
-        service_areas:
+        surveilled_areas:
           description: Traffic Surveilled Areas in the area of interest.
           type: array
           items:
@@ -1292,7 +1287,7 @@ components:
         - subscriptions
       type: object
       properties:
-        service_area:
+        surveilled_area:
           $ref: "#/components/schemas/TrafficSurveilledArea"
           description: |-
             Traffic Surveilled Area that the notifying client changed or created.
@@ -1335,10 +1330,10 @@ components:
     DeleteTrafficSurveilledAreaResponse:
       description: Response for a request to delete an Traffic Surveilled Area.
       required:
-        - service_area
+        - surveilled_area
       type: object
       properties:
-        service_area:
+        surveilled_area:
           $ref: "#/components/schemas/TrafficSurveilledArea"
           description: Traffic Surveilled Area that was just deleted.
         subscribers:
@@ -1356,7 +1351,7 @@ components:
         - subscription
       type: object
       properties:
-        service_areas:
+        surveilled_areas:
           description: Traffic Surveilled Areas in or near the subscription area at
             the time of creation/update, if `traffic_surveilled_area_url`
             callback was specified.
@@ -1371,10 +1366,10 @@ components:
       description: Response to DSS request for the surveilled area with
         the given ID.
       required:
-        - service_area
+        - surveilled_area
       type: object
       properties:
-        service_area:
+        surveilled_area:
           $ref: "#/components/schemas/TrafficSurveilledArea"
     GetTrafficSurveilledAreaDetailsResponse:
       description: Response to request for the details of an surveilled
