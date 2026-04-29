@@ -72,7 +72,7 @@ func (client *SurveillanceClientV0) GetCurrentTrafficFromView(ctx context.Contex
 	if surveilledAreas == nil {
 		return nil, errors.New("response is empty")
 	}
-	if surveilledAreas.ServiceAreas == nil || len(*surveilledAreas.ServiceAreas) == 0 {
+	if surveilledAreas.SurveilledAreas == nil || len(*surveilledAreas.SurveilledAreas) == 0 {
 		return nil, errors.New("no provider found")
 	}
 
@@ -85,7 +85,7 @@ func (client *SurveillanceClientV0) StreamFlightInAreas(ctx context.Context, sur
 	streamCollector := util.ConcurrentCollector[TrafficDataAndProvider]{}
 
 	// start streaming to the channel
-	for _, area := range *surveilledAreas.ServiceAreas {
+	for _, area := range *surveilledAreas.SurveilledAreas {
 
 		err := streamCollector.RegisterStreamer(func(ctx context.Context, channel chan *TrafficDataAndProvider) {
 			listenErr := client.listenTrafficFromSource(ctx, &area, channel, view)

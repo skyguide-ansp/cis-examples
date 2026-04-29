@@ -126,11 +126,11 @@ type DeleteSubscriptionResponse struct {
 
 // DeleteTrafficSurveilledAreaResponse Response for a request to delete an Traffic Surveilled Area.
 type DeleteTrafficSurveilledAreaResponse struct {
-	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
-	ServiceArea TrafficSurveilledArea `json:"service_area"`
-
 	// Subscribers DSS subscribers that this client now has the obligation to notify of the Traffic Surveilled Area just deleted.  This client must call POST for each provided URL according to the `/uss/traffic_surveilled_areas` path API.
 	Subscribers *[]SubscriberToNotify `json:"subscribers,omitempty"`
+
+	// SurveilledArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	SurveilledArea TrafficSurveilledArea `json:"surveilled_area"`
 }
 
 // EntityUUID UUID v4.
@@ -164,8 +164,8 @@ type GetSubscriptionResponse struct {
 
 // GetTrafficSurveilledAreaResponse Response to DSS request for the surveilled area with the given ID.
 type GetTrafficSurveilledAreaResponse struct {
-	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
-	ServiceArea TrafficSurveilledArea `json:"service_area"`
+	// SurveilledArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	SurveilledArea TrafficSurveilledArea `json:"surveilled_area"`
 }
 
 // LatLngPoint Point on the earth's surface.
@@ -190,20 +190,20 @@ type Polygon struct {
 
 // PutSubscriptionResponse Response for a request to create or update a subscription.
 type PutSubscriptionResponse struct {
-	// ServiceAreas Traffic Surveilled Areas in or near the subscription area at the time of creation/update, if `traffic_surveilled_area_url` callback was specified.
-	ServiceAreas *[]TrafficSurveilledArea `json:"service_areas,omitempty"`
-
 	// Subscription Specification of a geographic area that a client is interested in on an ongoing basis (e.g., "planning area").  Internal to the DSS.
 	Subscription Subscription `json:"subscription"`
+
+	// SurveilledAreas Traffic Surveilled Areas in or near the subscription area at the time of creation/update, if `traffic_surveilled_area_url` callback was specified.
+	SurveilledAreas *[]TrafficSurveilledArea `json:"surveilled_areas,omitempty"`
 }
 
 // PutTrafficSurveilledAreaResponse Response to a request to create or update a reference to an Traffic Surveilled Area in the DSS.
 type PutTrafficSurveilledAreaResponse struct {
-	// ServiceArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
-	ServiceArea TrafficSurveilledArea `json:"service_area"`
-
 	// Subscribers DSS subscribers that this client now has the obligation to notify of the Traffic Surveilled Area changes just made.  This client must call POST for each provided URL according to the `/uss/traffic_surveilled_areas/{id}` path API.
 	Subscribers *[]SubscriberToNotify `json:"subscribers,omitempty"`
+
+	// SurveilledArea An Traffic Surveilled Area (area in which surveillance services are being provided).  The DSS reports only these declarations and clients must exchange flight information peer-to-peer.
+	SurveilledArea TrafficSurveilledArea `json:"surveilled_area"`
 }
 
 // Radius defines model for Radius.
@@ -226,8 +226,8 @@ type SearchSubscriptionsResponse struct {
 
 // SearchTrafficSurveilledAreasResponse Response to DSS query for Traffic Surveilled Areas in an area of interest.
 type SearchTrafficSurveilledAreasResponse struct {
-	// ServiceAreas Traffic Surveilled Areas in the area of interest.
-	ServiceAreas *[]TrafficSurveilledArea `json:"service_areas,omitempty"`
+	// SurveilledAreas Traffic Surveilled Areas in the area of interest.
+	SurveilledAreas *[]TrafficSurveilledArea `json:"surveilled_areas,omitempty"`
 }
 
 // SubscriberToNotify Subscriber to notify of a creation/change/deletion of a change in the airspace.  This is provided by the DSS to a client changing the airspace, and it is the responsibility of the client changing the airspace (they will receive a set of these notification requests) to send a notification to each specified `url`.
