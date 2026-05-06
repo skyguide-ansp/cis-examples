@@ -2,7 +2,6 @@ package http
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,15 +27,12 @@ import (
 // And this as long as the context of the request is alive, the server will continuously write into it
 
 // ReadOneSSEEvent gather all lines between the \n space that separate the data
-func ReadOneSSEEvent(ctx context.Context, r *bufio.Reader) ([]string, error) {
+func ReadOneSSEEvent(r *bufio.Reader) ([]string, error) {
 	var lines []string
 
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
 			return nil, err
 		}
 		line = strings.TrimRight(line, "\n")

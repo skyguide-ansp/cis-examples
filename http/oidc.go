@@ -45,20 +45,20 @@ func AuthenticateWithClientCredentials(ctx context.Context, credential Credentia
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, credential.TokenURL, strings.NewReader(values.Encode()))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create token request, %+w", err)
+		return nil, fmt.Errorf("create token request, %+w", err)
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	// perform request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute HTTP request to create token, %+w", err)
+		return nil, fmt.Errorf("create token: %+w", err)
 	}
 
 	// decode token and set the request time
-	token, err := DecodeJsonHttpRequest[Token](resp)
+	token, err := DecodeJson[Token](resp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode token: %+w", err)
 	}
 	if token == nil {
 		return nil, errors.New("could not retrieve token")
@@ -66,15 +66,4 @@ func AuthenticateWithClientCredentials(ctx context.Context, credential Credentia
 	token.RequestTime = time.Now()
 
 	return token, nil
-}
-
-func IsTokenExpired(token *Token) bool {
-	if token == nil {
-		return true
-	}
-
-	return token.RequestTime.
-		Add(time.Duration(token.ExpiresIn) * time.Second).
-		Add(time.Duration(-2) * time.Minute).
-		After(time.Now())
 }
