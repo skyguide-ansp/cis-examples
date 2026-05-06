@@ -188,8 +188,8 @@ func streamFlights(ctx context.Context, ussBaseUrl *url.URL, view string, token 
 			return nil
 		default:
 			lines, err := httpUtil.ReadOneSSEEvent(reader)
-			if err != err {
-				return err
+			if err != nil {
+				return fmt.Errorf("read SSE event: %w", err)
 			}
 
 			flight, err := httpUtil.ParseEventFromSSE[api.Flight](lines)
