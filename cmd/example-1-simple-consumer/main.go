@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +19,11 @@ import (
 	httpUtil "github.com/skyguide-ansp/cis-examples/http"
 	"github.com/skyguide-ansp/cis-examples/util"
 )
+
+func init() {
+	log.SetOutput(os.Stdout)
+	log.SetFlags(0)
+}
 
 // starts a surveillance display-provider client
 func main() {
@@ -34,12 +40,12 @@ func main() {
 
 	dssBaseUrl, err := url.Parse(*dssUrl + *dssBasePath)
 	if err != nil {
-		panic(fmt.Errorf("parse dss url: %w", err))
+		log.Panicf("Failed to parse dss url: %v", err)
 	}
 
 	min, max, err := util.ParseView(*view)
 	if err != nil {
-		panic(fmt.Errorf("parse view: %w", err))
+		log.Panicf("Failed to parse view: %v", err)
 	}
 	polygon := util.Polygon{
 		min,
@@ -53,7 +59,7 @@ func main() {
 	defer cancel()
 
 	// 1. retrieve token for DSS interaction
-	fmt.Printf("Get token for audience %q...\n", dssBaseUrl.Hostname())
+	log.Printf("Get token for audience %q...\n", dssBaseUrl.Hostname())
 	dssCredentials := httpUtil.Credential{
 		Scopes:       util.StringToList(*oidcScopes),
 		Audiences:    []string{dssBaseUrl.Hostname()},
@@ -63,31 +69,34 @@ func main() {
 	}
 	dssToken, err := authenticate(ctx, dssCredentials)
 	if err != nil {
-		panic(err)
+		log.Panicf("Failed to authenticate: %v", err)
 	}
-	fmt.Printf("Token fetched\n")
+	log.Printf("Token fetched\n")
 
 	// 2. search/subscribe traffic surveilled area in DSS
-	fmt.Printf("Search traffic surveilled areas %q...\n", area)
+	log.Printf("Search traffic surveilled areas %q...\n", area)
 	tsas, err := searchTrafficSurveilledAreas(ctx, dssBaseUrl, area, dssToken)
 	if err != nil {
-		panic(err)
+		log.Panicf("Failed to search traffic surveilled areas: %v", err)
 	}
-	fmt.Printf("Surveilled areas discovered: %d\n", len(tsas))
+	log.Printf("Surveilled areas discovered: %d\n", len(tsas))
 
+	// TODO group calls for TSA with same UssBaseUrl
 	var wg sync.WaitGroup
 	now := time.Now()
 	for _, tsa := range tsas {
 		wg.Go(func() {
+			defer func() { log.Printf("%s: Done", tsa.Owner) }()
+
 			if tsa.TimeStart != nil && now.Before((time.Time)(*tsa.TimeStart)) ||
 				tsa.TimeEnd != nil && now.After((time.Time)(*tsa.TimeEnd)) {
-				fmt.Printf("%s: Skip inactive surveilled area: %q\n", tsa.Owner, tsa.Id)
+				log.Printf("%s: Skip inactive surveilled area: %q\n", tsa.Owner, tsa.Id)
 				return
 			}
 
 			ussBaseUrl, err := url.Parse(tsa.UssBaseUrl)
 			if err != nil {
-				fmt.Printf("%s: parse uss url: %v\n", tsa.Owner, err)
+				log.Printf("%s: Failed to parse uss base url: %v\n", tsa.Owner, err)
 				return
 			}
 
@@ -100,17 +109,18 @@ func main() {
 				TokenURL:     *oidcTokenUrl,
 			}
 
-			fmt.Printf("%s: Get token for audience %q...\n", tsa.Owner, ussBaseUrl.Hostname())
+			log.Printf("%s: Get token for audience %q...\n", tsa.Owner, ussBaseUrl.Hostname())
 			ussToken, err := authenticate(ctx, ussCredentials)
 			if err != nil {
-				panic(err)
+				log.Printf("%s: Failed to authenticate: %v", tsa.Owner, err)
+				return
 			}
-			fmt.Printf("%s: Token fetched\n", tsa.Owner)
+			log.Printf("%s: Token fetched\n", tsa.Owner)
 
-			fmt.Printf("%s: Stream flights...\n", tsa.Owner)
+			log.Printf("%s: Stream flights...\n", tsa.Owner)
 			err = streamFlights(ctx, ussBaseUrl, *view, ussToken, tsa.Owner)
 			if err != nil {
-				fmt.Printf("%s: %v\n", tsa.Owner, err)
+				log.Printf("%s: %v\n", tsa.Owner, err)
 			}
 		})
 	}
@@ -123,7 +133,7 @@ func authenticate(ctx context.Context, creds httpUtil.Credential) (*httpUtil.Tok
 
 	token, err := httpUtil.AuthenticateWithClientCredentials(ctx, creds)
 	if err != nil {
-		return nil, fmt.Errorf("failed to authenticate: %w", err)
+		return nil, fmt.Errorf("authenticate: %w", err)
 	}
 
 	return token, nil
@@ -184,17 +194,17 @@ func streamFlights(ctx context.Context, ussBaseUrl *url.URL, view string, token 
 
 			flight, err := httpUtil.ParseEventFromSSE[api.Flight](lines)
 			if err != nil {
-				fmt.Printf("%s: failed decoding %q\n", owner, lines)
+				log.Printf("%s: Failed decoding %q\n", owner, lines)
 				continue
 			}
 
 			data, err := json.Marshal(flight)
 			if err != nil {
-				fmt.Printf("%s: failed marshalling %v\n", owner, flight)
+				log.Printf("%s: Failed marshalling %v\n", owner, flight)
 				continue
 			}
 
-			fmt.Printf("%s: %s\n", owner, data)
+			log.Printf("%s: %s\n", owner, data)
 		}
 	}
 }
