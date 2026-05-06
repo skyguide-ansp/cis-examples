@@ -1,20 +1,25 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
-	provider "github.com/skyguide-ansp/cis-examples/display/surveillance/v0"
+	api "github.com/skyguide-ansp/cis-examples/api/surveillance/v0"
 	httpUtil "github.com/skyguide-ansp/cis-examples/http"
 	"github.com/skyguide-ansp/cis-examples/util"
 )
 
-// starts a client that is in charge to retrieve the data
+// starts a surveillance display-provider client
 func main() {
 	// flags
 	dssUrl := flag.String("dss-url", "", "base url of the dss, expect protocol to be part of it")
@@ -22,72 +27,174 @@ func main() {
 	oidcTokenUrl := flag.String("oidc-token-url", "", "url of the authentication server, token endpoint expected, protocol expected")
 	oidcClientId := flag.String("oidc-client-id", "", "oidc client id")
 	oidcClientSecret := flag.String("oidc-client-secret", "", "oidc client secret")
-	oidcDssScopes := flag.String("dss-scopes", "surveillance.display_provider", "dss scopes to pass to oidc, default to surveillance.display_provider, optional")
-	oidcUssScopes := flag.String("uss-scopes", "surveillance.display_provider", "uss scopes to pass to oidc, default to surveillance.display_provider, optional")
+	oidcScopes := flag.String("oidc-scopes", "surveillance.display_provider", "scopes to pass to oidc, default to surveillance.display_provider, optional")
 	view := flag.String("view", "", "lat1,lng1,lat2,lng2 each as float")
 
 	flag.Parse()
 
-	dssHost, err := url.Parse(*dssUrl)
+	dssBaseUrl, err := url.Parse(*dssUrl + *dssBasePath)
 	if err != nil {
-		panic("unparsable dss url")
+		panic(fmt.Errorf("parse dss url: %w", err))
 	}
 
-	// retrieve oidc credential
-	DssCredentials := httpUtil.Credential{
-		Scopes:       util.StringToList(*oidcDssScopes),
-		Audiences:    []string{dssHost.Host},
-		ClientID:     *oidcClientId,
-		ClientSecret: *oidcClientSecret,
-		TokenURL:     *oidcTokenUrl,
-	}
-
-	UssCredentials := httpUtil.Credential{
-		Scopes:       util.StringToList(*oidcUssScopes),
-		ClientID:     *oidcClientId,
-		ClientSecret: *oidcClientSecret,
-		TokenURL:     *oidcTokenUrl,
-	}
-
-	// create client
-	displayProvider, err := provider.NewConsumer(
-		DssCredentials,
-		UssCredentials,
-		*dssUrl,
-		*dssBasePath,
-	)
+	min, max, err := util.ParseView(*view)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("parse view: %w", err))
 	}
+	polygon := util.Polygon{
+		min,
+		util.Point{Lat: max.Lat, Lng: min.Lng},
+		max,
+		util.Point{Lat: min.Lat, Lng: max.Lng},
+	}
+	area := polygon.String()
 
-	// get providers
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if !util.ValidateView(*view) {
-		panic(errors.New("view must be: lat1,lng1,lat2,lng2 with: -90 <= lat <= 90 and long -180 <= lng <= 180"))
+	// 1. retrieve token for DSS interaction
+	fmt.Printf("Get token for audience %q...\n", dssBaseUrl.Hostname())
+	dssCredentials := httpUtil.Credential{
+		Scopes:       util.StringToList(*oidcScopes),
+		Audiences:    []string{dssBaseUrl.Hostname()},
+		ClientID:     *oidcClientId,
+		ClientSecret: *oidcClientSecret,
+		TokenURL:     *oidcTokenUrl,
 	}
-	stream, err := displayProvider.GetCurrentTrafficFromView(ctx, *view)
+	dssToken, err := authenticate(ctx, dssCredentials)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Token fetched\n")
 
-	// print
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case data, ok := <-stream:
-			if !ok {
+	// 2. search/subscribe traffic surveilled area in DSS
+	fmt.Printf("Search traffic surveilled areas %q...\n", area)
+	tsas, err := searchTrafficSurveilledAreas(ctx, dssBaseUrl, area, dssToken)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Surveilled areas discovered: %d\n", len(tsas))
+
+	var wg sync.WaitGroup
+	now := time.Now()
+	for _, tsa := range tsas {
+		wg.Go(func() {
+			if tsa.TimeStart != nil && now.Before((time.Time)(*tsa.TimeStart)) ||
+				tsa.TimeEnd != nil && now.After((time.Time)(*tsa.TimeEnd)) {
+				fmt.Printf("%s: Skip inactive surveilled area: %q\n", tsa.Owner, tsa.Id)
 				return
 			}
 
-			jsonFlightInfo, convertErr := json.Marshal(data.Data)
-			if convertErr != nil {
-				fmt.Printf("unexpected err : %v", convertErr)
+			ussBaseUrl, err := url.Parse(tsa.UssBaseUrl)
+			if err != nil {
+				fmt.Printf("%s: parse uss url: %v\n", tsa.Owner, err)
+				return
 			}
-			fmt.Printf("area owner: %s , value: %s", data.Provider, string(jsonFlightInfo))
-		}
+
+			// 3. retrieve token for USS interaction
+			ussCredentials := httpUtil.Credential{
+				Scopes:       util.StringToList(*oidcScopes),
+				Audiences:    []string{ussBaseUrl.Hostname()},
+				ClientID:     *oidcClientId,
+				ClientSecret: *oidcClientSecret,
+				TokenURL:     *oidcTokenUrl,
+			}
+
+			fmt.Printf("%s: Get token for audience %q...\n", tsa.Owner, ussBaseUrl.Hostname())
+			ussToken, err := authenticate(ctx, ussCredentials)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("%s: Token fetched\n", tsa.Owner)
+
+			fmt.Printf("%s: Stream flights...\n", tsa.Owner)
+			err = streamFlights(ctx, ussBaseUrl, *view, ussToken, tsa.Owner)
+			if err != nil {
+				fmt.Printf("%s: %v\n", tsa.Owner, err)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+func authenticate(ctx context.Context, creds httpUtil.Credential) (*httpUtil.Token, error) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	token, err := httpUtil.AuthenticateWithClientCredentials(ctx, creds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to authenticate: %w", err)
 	}
 
+	return token, nil
+}
+
+func searchTrafficSurveilledAreas(ctx context.Context, dssBaseUrl *url.URL, area string, token *httpUtil.Token) ([]*api.TrafficSurveilledArea, error) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	searchTrafficSurveilledAreasUrl := dssBaseUrl.JoinPath("/dss/traffic_surveilled_areas")
+	params := url.Values{"area": {area}}
+	searchTrafficSurveilledAreasUrl.RawQuery = params.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchTrafficSurveilledAreasUrl.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create search traffic surveilled areas request: %w", err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("search traffic surveilled areas: %w", err)
+	}
+
+	searchTSAResp, err := httpUtil.DecodeJson[api.SearchTrafficSurveilledAreasResponse](resp)
+	if err != nil {
+		return nil, fmt.Errorf("decode search traffic surveilled area response: %w", err)
+	}
+
+	return searchTSAResp.SurveilledAreas, nil
+}
+
+func streamFlights(ctx context.Context, ussBaseUrl *url.URL, view string, token *httpUtil.Token, owner string) error {
+	streamFlightsUrl := ussBaseUrl.JoinPath("/uss/flights/stream")
+	params := url.Values{"view": {view}}
+	streamFlightsUrl.RawQuery = params.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, streamFlightsUrl.String(), nil)
+	if err != nil {
+		return fmt.Errorf("create stream flight request: %w", err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.AccessToken))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("stream flights: %w", err)
+	}
+	defer resp.Body.Close()
+
+	reader := bufio.NewReader(resp.Body)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			lines, err := httpUtil.ReadOneSSEEvent(reader)
+			if err != err {
+				return err
+			}
+
+			flight, err := httpUtil.ParseEventFromSSE[api.Flight](lines)
+			if err != nil {
+				fmt.Printf("%s: failed decoding %q\n", owner, lines)
+				continue
+			}
+
+			data, err := json.Marshal(flight)
+			if err != nil {
+				fmt.Printf("%s: failed marshalling %v\n", owner, flight)
+				continue
+			}
+
+			fmt.Printf("%s: %s\n", owner, data)
+		}
+	}
 }

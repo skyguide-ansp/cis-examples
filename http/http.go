@@ -1,62 +1,27 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 )
 
-type Authorizer struct {
-	Credential Credential
-	Token      *Token
-	Lock       sync.Mutex
-}
-
-// set Authorization header calling Oidc tools
-func (client *Authorizer) SetAuthorizationHeader(ctx context.Context, req *http.Request) (*http.Request, error) {
-	client.Lock.Lock()
-	defer client.Lock.Unlock()
-
-	if IsTokenExpired(client.Token) {
-		token, refreshErr := AuthenticateWithClientCredentials(ctx, client.Credential)
-		if refreshErr != nil {
-			return nil, refreshErr
-		}
-		client.Token = token
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.Token.AccessToken))
-	return req, nil
-}
-
 // control error code, and decode response as type T if the application/json header is present
-func DecodeJsonHttpRequest[T any](resp *http.Response) (*T, error) {
+func DecodeJson[T any](resp *http.Response) (*T, error) {
 	if resp == nil {
 		return nil, nil
 	}
-
-	defer func() {
-		if errC := resp.Body.Close(); errC != nil {
-			fmt.Printf("failed to close response body %+v", errC)
-		}
-	}()
+	defer resp.Body.Close()
 
 	// errors handling
-	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized {
-		return nil, errors.New("authentication forbidden")
-	}
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		return nil, errors.New("authentication failed")
-	}
-	if resp.StatusCode == http.StatusRequestEntityTooLarge {
-		return nil, errors.New("requested area is too large")
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(http.StatusText(resp.StatusCode))
 	}
 
 	// if no response return nothing
-	if resp.StatusCode == http.StatusNoContent || resp.ContentLength == 0 {
+	if resp.ContentLength == 0 {
 		return nil, nil
 	}
 
@@ -67,7 +32,7 @@ func DecodeJsonHttpRequest[T any](resp *http.Response) (*T, error) {
 		var data T
 		err := json.NewDecoder(resp.Body).Decode(&data)
 		if err != nil {
-			return nil, errors.New("unparsable token")
+			return nil, fmt.Errorf("decode json: %w", err)
 		}
 		return &data, nil
 	}
