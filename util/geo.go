@@ -47,7 +47,7 @@ func ParseView(view string) (Point, Point, error) {
 	var min, max Point
 	_, err := fmt.Sscanf(view, "%f,%f,%f,%f", &min.Lat, &min.Lng, &max.Lat, &max.Lng)
 	if err != nil {
-		return min, max, err
+		return min, max, errors.New("invalid format")
 	}
 	if err := ValidateLongitudes(min.Lat, max.Lat); err != nil {
 		return min, max, err
