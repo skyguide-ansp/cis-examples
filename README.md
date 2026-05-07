@@ -1,19 +1,21 @@
 # cis-examples
 
-## surveillance: 
+## Surveillance
 
-### description
+### Description
 
 In this example, we call the surveillance search Traffic Surveilled Area from the dss,
 gather the uss base urls and then query each of them to retrieve the stream of flights, and print every event.
 
 ![til](./docs/surveillance-example.gif)
 
-### usage:
+### Usage
 
+```sh
 go build -o surveillance ./cmd/surveillance
+```
 
-then run it with the rights flags
+then run `./surveillance` with the rights flags
 ```
   -dss-base-path string
         surveillance service base path for the dss (default "/surveillance/v0")
@@ -30,5 +32,3 @@ then run it with the rights flags
   -view string
         lat1,lng1,lat2,lng2 each as float
 ```
-
-./surveillance
