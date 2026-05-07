@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -42,6 +43,29 @@ func main() {
 	dssBaseUrl, err := url.Parse(*dssUrl + *dssBasePath)
 	if err != nil {
 		log.Panicf("Failed to parse dss url: %v", err)
+	}
+
+	var missing []string
+	if *dssUrl == "" {
+		missing = append(missing, "dss-url")
+	}
+	if *oidcTokenUrl == "" {
+		missing = append(missing, "oidc-token-url")
+	}
+	if *oidcClientId == "" {
+		missing = append(missing, "oidc-client-id")
+	}
+	if *oidcClientSecret == "" {
+		missing = append(missing, "oidc-client-secret")
+	}
+	if *view == "" {
+		missing = append(missing, "view")
+	}
+
+	if len(missing) > 0 {
+		fmt.Fprintf(os.Stderr, "Missing required flags: %s\n\n", strings.Join(missing, ", "))
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	min, max, err := util.ParseView(*view)
