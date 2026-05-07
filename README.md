@@ -7,6 +7,8 @@
 In this example, we call the surveillance search Traffic Surveilled Area from the dss,
 gather the uss base urls and then query each of them to retrieve the stream of flights, and print every event.
 
+![til](./docs/surveillance-example.gif)
+
 ### usage:
 
 go build -o surveillance ./cmd/surveillance
