@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -180,6 +181,11 @@ func streamFlights(ctx context.Context, ussBaseUrl *url.URL, view string, token 
 		return fmt.Errorf("stream flights: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// errors handling
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(http.StatusText(resp.StatusCode))
+	}
 
 	reader := bufio.NewReader(resp.Body)
 	for {
