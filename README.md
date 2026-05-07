@@ -1,34 +1,32 @@
-## uses case 1: 
+# cis-examples
+
+## surveillance: 
 
 ### description
 
-in this example, we call the traffic_surveilled_area from the dss, gather the uss url
-then query each of them to retrieve the stream of data, and print it during 15s.
+In this example, we call the surveillance search Traffic Surveilled Area from the dss,
+gather the uss base urls and then query each of them to retrieve the stream of flights, and print every event.
 
 ### usage:
 
-go build -o example1 ./cmd/example-1-simple-consumer
+go build -o surveillance ./cmd/surveillance
 
 then run it with the rights flags
 ```
- -oidc-client-id string
-        client id
-  -oidc-client-secret string
-        client secret
-  -dss-audiences string
-        dss audience to pass to oidc
   -dss-base-path string
-        base path for the dss (default "/surveillance/v0")
-  -dss-scopes string
-        dss scopes to pass to oidc
+        surveillance service base path for the dss (default "/surveillance/v0")
   -dss-url string
-        base url of the dss
+        base url of the dss, expect protocol to be part of it
+  -oidc-client-id string
+        oidc client id
+  -oidc-client-secret string
+        oidc client secret
+  -oidc-scopes string
+        scopes to pass to oidc, default to surveillance.display_provider, optional (default "surveillance.display_provider")
   -oidc-token-url string
-        url of the authentication server, token endpoint exected
-  -uss-scopes string
-        uss scopes to pass to oidc
+        url of the authentication server, token endpoint expected, protocol expected
   -view string
         lat1,lng1,lat2,lng2 each as float
 ```
 
-./cis-example
+./surveillance

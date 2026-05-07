@@ -30,7 +30,7 @@ func init() {
 func main() {
 	// flags
 	dssUrl := flag.String("dss-url", "", "base url of the dss, expect protocol to be part of it")
-	dssBasePath := flag.String("dss-base-path", "/surveillance/v0", "base path for the dss")
+	dssBasePath := flag.String("dss-base-path", "/surveillance/v0", "surveillance service base path for the dss")
 	oidcTokenUrl := flag.String("oidc-token-url", "", "url of the authentication server, token endpoint expected, protocol expected")
 	oidcClientId := flag.String("oidc-client-id", "", "oidc client id")
 	oidcClientSecret := flag.String("oidc-client-secret", "", "oidc client secret")
