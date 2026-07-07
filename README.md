@@ -1,34 +1,57 @@
 # cis-examples
 
+This project is a collection of examples for the u-space data provisionng and exchange between the CIS and USS.
+
+## Authentication
+
+This project uses OAuth 2.0 with the Client Credentials Grant flow for authentication.
+To interact with the examples, you must provide a valid Client ID and Client Secret issued by the OpenID Connect (OIDC) provider.
+
+Required parameters:
+
+```
+  -oidc-client-id string
+        oidc client id
+  -oidc-client-secret string
+        oidc client secret
+  -oidc-token-url string
+        url of the authentication server, token endpoint expected, protocol expected
+```
+
+## Geo-Awareness
+
+### Description
+
+This example demonstrates how to discover and ingest active ED-318 geozones within a specific geographic area.
+The client queries the DSS for active constraints referneces, fetches the corresponding constraints details from 
+their managers and prints the embeded ED-318 geozone.
+
+### Usage
+
+Run `go run ./cmd/geoawareness` with
+```
+  -dss-url string
+        base url of the dss, expect protocol to be part of it
+  -view string
+        lat1,lng1,lat2,lng2 each as float
+```
+
 ## Surveillance
 
 ### Description
 
-In this example, we call the surveillance search Traffic Surveilled Area from the dss,
-gather the uss base urls and then query each of them to retrieve the stream of flights, and print every event.
+This example demonstrates how to discover and stream real-time ATM data within a specific geographic area.
+The client queries the DSS for active Traffic Surveilled Areas (TSA), and consumes the Server-Sent Event (SSE) flight streams
+from individual surveillance providers.
 
 ![til](./docs/surveillance-example.gif)
 
 ### Usage
 
-```sh
-go build -o surveillance ./cmd/surveillance
+Run `go run ./surveillance` with
 ```
-
-then run `./surveillance` with the rights flags
-```
-  -dss-base-path string
-        surveillance service base path for the dss (default "/surveillance/v0")
   -dss-url string
         base url of the dss, expect protocol to be part of it
-  -oidc-client-id string
-        oidc client id
-  -oidc-client-secret string
-        oidc client secret
-  -oidc-scopes string
-        scopes to pass to oidc, default to surveillance.display_provider, optional (default "surveillance.display_provider")
-  -oidc-token-url string
-        url of the authentication server, token endpoint expected, protocol expected
   -view string
         lat1,lng1,lat2,lng2 each as float
 ```

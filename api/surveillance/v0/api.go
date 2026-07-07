@@ -1,40 +1,8 @@
 package v0
 
 import (
-	"encoding/json"
-	"time"
+	"github.com/skyguide-ansp/cis-examples/api/common"
 )
-
-type Time time.Time
-
-func (t Time) MarshalJSON() ([]byte, error) {
-	// We can create a "shadow" type to avoid infinite recursion
-	// or manually construct a string/map.
-	return json.Marshal(&struct {
-		// RFC3339-formatted time/date string.  The time zone must be 'Z'.
-		Value  string `json:"value,omitempty"`
-		Format string `json:"format,omitempty"`
-	}{
-		Value:  (time.Time)(t).UTC().Format(time.RFC3339),
-		Format: "RFC3339",
-	})
-}
-
-func (t *Time) UnmarshalJSON(data []byte) error {
-	aux := struct {
-		Value string `json:"value,omitempty"`
-	}{}
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
-		return err
-	}
-	goTime, err := time.Parse(time.RFC3339, aux.Value)
-	if err != nil {
-		return err
-	}
-	*t = (Time)(goTime)
-	return nil
-}
 
 type TrafficSurveilledArea struct {
 	// Unique identifier for this Traffic Surveilled Area.
@@ -49,9 +17,9 @@ type TrafficSurveilledArea struct {
 	// Any updates to an object must contain the corresponding version to maintain idempotent updates.
 	Version string `json:"version,omitempty"`
 	// Beginning time of surveillance.
-	TimeStart *Time `json:"time_start,omitempty"`
+	TimeStart *common.Time `json:"time_start,omitempty"`
 	// End time of surveillance.
-	TimeEnd *Time `json:"time_end,omitempty"`
+	TimeEnd *common.Time `json:"time_end,omitempty"`
 }
 
 type SearchTrafficSurveilledAreasResponse struct {
@@ -85,7 +53,7 @@ type AircraftState struct {
 	// Ground speed of flight in meters per second.  Invalid, No Value, or Unknown is 255 m/s, if speed is >254.25 m/s then report 254.25 m/s.
 	Speed *float64 `json:"speed,omitempty"`
 	// Timestamp Time at which this state was valid.  This may be the time coming from the source, such as a GPS, or the time when the system computes the values using an algorithm such as an Extended Kalman Filter (EKF).  Timestamp must be expressed with a minimum resolution of 1/10th of a second.
-	Timestamp Time `json:"timestamp"`
+	Timestamp common.Time `json:"timestamp"`
 	// VerticalSpeed Speed up (vertically) WGS84-HAE, m/s.  Invalid, No Value, or Unknown is 63 m/s, if speed is >62 m/s then report 62 m/s.
 	VerticalSpeed *float64 `json:"vertical_speed,omitempty"`
 	// Track Direction of flight expressed as a "True North-based" ground track angle.  This value is provided in clockwise degrees with a minimum resolution of 1 degree.  If aircraft is not moving horizontally, use the "Unknown" value.  A value of 361 indicates invalid, no value, or unknown.
