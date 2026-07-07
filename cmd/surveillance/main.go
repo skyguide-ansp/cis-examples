@@ -72,13 +72,12 @@ func main() {
 	if err != nil {
 		log.Panicf("Failed to parse view: %v", err)
 	}
-	polygon := util.Polygon{
+	area := util.Polygon{
 		min,
 		util.Point{Lat: max.Lat, Lng: min.Lng},
 		max,
 		util.Point{Lat: min.Lat, Lng: max.Lng},
 	}
-	area := polygon.String()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -106,22 +105,35 @@ func main() {
 	}
 	log.Printf("Surveilled areas discovered: %d\n", len(tsas))
 
-	// TODO group calls for TSA with same UssBaseUrl
-	var wg sync.WaitGroup
+	type uss struct {
+		owner   string
+		baseUrl string
+	}
+
 	now := time.Now()
+	providers := make(map[uss]struct{})
 	for _, tsa := range tsas {
+		if tsa.TimeStart != nil && now.Before((time.Time)(*tsa.TimeStart)) ||
+			tsa.TimeEnd != nil && now.After((time.Time)(*tsa.TimeEnd)) {
+			log.Printf("%s: Skip inactive surveilled area: %q\n", tsa.Owner, tsa.Id)
+			return
+		}
+
+		uss := uss{
+			owner:   tsa.Owner,
+			baseUrl: tsa.UssBaseUrl,
+		}
+		providers[uss] = struct{}{}
+	}
+
+	var wg sync.WaitGroup
+	for uss, _ := range providers {
 		wg.Go(func() {
-			defer func() { log.Printf("%s: Done", tsa.Owner) }()
+			defer func() { log.Printf("%s: Done", uss.owner) }()
 
-			if tsa.TimeStart != nil && now.Before((time.Time)(*tsa.TimeStart)) ||
-				tsa.TimeEnd != nil && now.After((time.Time)(*tsa.TimeEnd)) {
-				log.Printf("%s: Skip inactive surveilled area: %q\n", tsa.Owner, tsa.Id)
-				return
-			}
-
-			ussBaseUrl, err := url.Parse(tsa.UssBaseUrl)
+			ussBaseUrl, err := url.Parse(uss.baseUrl)
 			if err != nil {
-				log.Printf("%s: Failed to parse uss base url: %v\n", tsa.Owner, err)
+				log.Printf("%s: Failed to parse uss base url: %v\n", uss.owner, err)
 				return
 			}
 
@@ -134,18 +146,18 @@ func main() {
 				TokenURL:     *oidcTokenUrl,
 			}
 
-			log.Printf("%s: Get token for audience %q...\n", tsa.Owner, ussBaseUrl.Hostname())
+			log.Printf("%s: Get token for audience %q...\n", uss.owner, ussBaseUrl.Hostname())
 			ussToken, err := authenticate(ctx, ussCredentials)
 			if err != nil {
-				log.Printf("%s: Failed to authenticate: %v", tsa.Owner, err)
+				log.Printf("%s: Failed to authenticate: %v\n", uss.owner, err)
 				return
 			}
-			log.Printf("%s: Token fetched\n", tsa.Owner)
+			log.Printf("%s: Token fetched\n", uss.owner)
 
-			log.Printf("%s: Stream flights...\n", tsa.Owner)
-			err = streamFlights(ctx, ussBaseUrl, *view, ussToken, tsa.Owner)
+			log.Printf("%s: Stream flights...\n", uss.owner)
+			err = streamFlights(ctx, ussBaseUrl, *view, ussToken, uss.owner)
 			if err != nil {
-				log.Printf("%s: %v\n", tsa.Owner, err)
+				log.Printf("%s: %v\n", uss.owner, err)
 			}
 		})
 	}
@@ -164,12 +176,12 @@ func authenticate(ctx context.Context, creds httpUtil.Credential) (*httpUtil.Tok
 	return token, nil
 }
 
-func searchTrafficSurveilledAreas(ctx context.Context, dssBaseUrl *url.URL, area string, token *httpUtil.Token) ([]*api.TrafficSurveilledArea, error) {
+func searchTrafficSurveilledAreas(ctx context.Context, dssBaseUrl *url.URL, area util.Polygon, token *httpUtil.Token) ([]*api.TrafficSurveilledArea, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	searchTrafficSurveilledAreasUrl := dssBaseUrl.JoinPath("/dss/traffic_surveilled_areas")
-	params := url.Values{"area": {area}}
+	params := url.Values{"area": {area.String()}}
 	searchTrafficSurveilledAreasUrl.RawQuery = params.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchTrafficSurveilledAreasUrl.String(), nil)
 	if err != nil {
