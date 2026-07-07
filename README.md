@@ -28,11 +28,7 @@ their managers and prints the embeded ED-318 geozone.
 
 ### Usage
 
-```sh
-go build -o geoawareness ./cmd/geoawareness
-```
-
-then run `./geoawareness` with
+Run `go run ./cmd/geoawareness` with
 ```
   -dss-url string
         base url of the dss, expect protocol to be part of it
@@ -52,11 +48,7 @@ from individual surveillance providers.
 
 ### Usage
 
-```sh
-go build -o surveillance ./cmd/surveillance
-```
-
-then run `./surveillance` with
+Run `go run ./surveillance` with
 ```
   -dss-url string
         base url of the dss, expect protocol to be part of it
