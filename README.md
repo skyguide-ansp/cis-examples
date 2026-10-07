@@ -36,6 +36,35 @@ Run `go run ./cmd/geoawareness` with
         lat1,lng1,lat2,lng2 each as float
 ```
 
+## DAR
+
+### Description
+
+This example runs the full DAR lifecycle through the DAR Coordinator sandbox:
+publish a DAR, query its ED-318 constraint, report it vacated, then deactivate
+it.
+
+### Usage
+
+Run `go run ./cmd/dar` with:
+
+```
+  -dar-coordinator-url string
+        DAR Coordinator base URL
+  -dar-id string
+        DAR identifier
+  -dar-vacated-oidc-scope string
+        OIDC scope for the DAR Coordinator sandbox and VACATED callback (default "utm.dar_vacated")
+  -dss-url string
+        DSS base URL
+  -end-time string
+        DAR end time in RFC3339 format
+  -start-time string
+        DAR start time in RFC3339 format
+  -view string
+        DAR area as lat1,lng1,lat2,lng2
+```
+
 ## Surveillance
 
 ### Description
